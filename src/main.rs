@@ -6,7 +6,7 @@ mod map;
 use crate::interop::{
     initialize_assets, patch_music_and_character, patch_special_rules, ArrayWrapper,
 };
-use clap::{value_t, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use map::Map;
 use std::ffi::CString;
 use std::fs;
@@ -18,6 +18,7 @@ use yaml_rust::YamlLoader;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
+    /// Output path of generated content
     outdir: PathBuf,
 
     #[clap(subcommand)]
@@ -26,15 +27,21 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Unlocks DLC musics and characters (one DLC must be present, defaults to the first one)
     UnlockMusicAndCharacter {
+        /// The path to extracted share_data file
         share_data: PathBuf,
 
+        /// Exclude DLC IDs from being unlocked
         #[clap(short, long)]
         exclude: Vec<u16>,
     },
+    /// Unlock special challenge rules for PvE games
     UnlockSpecialRule {
+        /// The path to extracted share_data file
         share_data: PathBuf,
     },
+    /// Convert external map to mod files (deprecated)
     ConvertExtMap {
         config_file: PathBuf,
     },

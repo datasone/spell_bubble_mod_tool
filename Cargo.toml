@@ -14,6 +14,6 @@ name = "enum_generator"
 path = "src/enum_generator.rs"
 
 [dependencies]
-clap = { version = "3", features = ["derive"] }
-strum = { version = "0.21", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
+strum = { version = "0.25.0", features = ["derive"] }
 yaml-rust = "0.4"
