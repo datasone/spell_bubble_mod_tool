@@ -32,9 +32,11 @@ impl Default for Lang {
 #[derive(Default)]
 struct SongInfoText {
     title: String,
+    title_kana: String,
     sub_title: String,
     artist: String,
     artist2: String,
+    artist_kana: String,
     original: String,
     lang: Lang,
 }
@@ -60,6 +62,7 @@ struct SongInfo {
     info_num: SongInfoNum,
     area: Area,
     info_text: HashMap<Lang, SongInfoText>,
+    is_bpm_change: bool,
 }
 
 impl SongInfo {

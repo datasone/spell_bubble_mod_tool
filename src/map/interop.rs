@@ -22,6 +22,7 @@ struct MusicEntry {
     stars_easy: u8,
     stars_normal: u8,
     stars_hard: u8,
+    is_bpm_change: u8,
     bpm: u16,
     length: u16,
     duration_sec: f32,
@@ -33,8 +34,10 @@ struct WordEntry {
     lang: *const c_char,
     title: *const c_char,
     sub_title: *const c_char,
+    title_kana: *const c_char,
     artist: *const c_char,
     artist2: *const c_char,
+    artist_kana: *const c_char,
     original: *const c_char,
 }
 
@@ -46,7 +49,7 @@ extern "C" {
         song_id: *const c_char,
         params: ArrayWrapper,
     );
-    fn patch_share_data_res(
+    fn patch_share_data_music_data(
         share_data_path: *const c_char,
         out_file: *const c_char,
         params: ArrayWrapper,
@@ -163,6 +166,7 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
             stars_easy: stars[0],
             stars_normal: stars[1],
             stars_hard: stars[2],
+            is_bpm_change: if map.song_info.is_bpm_change {1} else {0},
             bpm: map.song_info.info_num.bpm,
             length: map.song_info.info_num.length,
             duration_sec: map.song_info.info_num.duration,
@@ -175,23 +179,29 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
             let lang_c = CString::new(text.lang.to_string().to_lowercase()).unwrap();
             let title_c = CString::new(text.title.clone()).unwrap();
             let sub_title_c = CString::new(text.sub_title.clone()).unwrap();
+            let title_kana_c = CString::new(text.title_kana.clone()).unwrap();
             let artist_c = CString::new(text.artist.clone()).unwrap();
             let artist2_c = CString::new(text.artist2.clone()).unwrap();
+            let artist_kana_c = CString::new(text.artist_kana.clone()).unwrap();
             let original_c = CString::new(text.original.clone()).unwrap();
 
             let lang_idx = vec_push_idx(&mut plus_1s_cstring, lang_c);
             let title_idx = vec_push_idx(&mut plus_1s_cstring, title_c);
             let sub_title_idx = vec_push_idx(&mut plus_1s_cstring, sub_title_c);
+            let title_kana_idx = vec_push_idx(&mut plus_1s_cstring, title_kana_c);
             let artist_idx = vec_push_idx(&mut plus_1s_cstring, artist_c);
             let artist2_idx = vec_push_idx(&mut plus_1s_cstring, artist2_c);
+            let artist_kana_idx = vec_push_idx(&mut plus_1s_cstring, artist_kana_c);
             let original_idx = vec_push_idx(&mut plus_1s_cstring, original_c);
 
             let word_entry = WordEntry {
                 lang: plus_1s_cstring[lang_idx].as_ptr(),
                 title: plus_1s_cstring[title_idx].as_ptr(),
                 sub_title: plus_1s_cstring[sub_title_idx].as_ptr(),
+                title_kana: plus_1s_cstring[title_kana_idx].as_ptr(),
                 artist: plus_1s_cstring[artist_idx].as_ptr(),
                 artist2: plus_1s_cstring[artist2_idx].as_ptr(),
+                artist_kana: plus_1s_cstring[artist_kana_idx].as_ptr(),
                 original: plus_1s_cstring[original_idx].as_ptr(),
             };
 
@@ -224,7 +234,7 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
             size: song_entries.len() as u32,
             array: mem::transmute(song_entries.as_ptr()),
         };
-        patch_share_data_res(share_data_c.as_ptr(), out_path_c.as_ptr(), wrapper);
+        patch_share_data_music_data(share_data_c.as_ptr(), out_path_c.as_ptr(), wrapper);
     }
 }
 
