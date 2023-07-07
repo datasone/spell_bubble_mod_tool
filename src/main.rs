@@ -1,4 +1,3 @@
-mod ext_map_parser;
 mod ffmpeg_helper;
 mod interop;
 mod map;

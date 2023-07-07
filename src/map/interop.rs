@@ -167,10 +167,10 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
             stars_normal: stars[1],
             stars_hard: stars[2],
             is_bpm_change: if map.song_info.is_bpm_change {1} else {0},
-            bpm: map.song_info.info_num.bpm,
-            length: map.song_info.info_num.length,
-            duration_sec: map.song_info.info_num.duration,
-            offset: 0.0, // map.song_info.info_num.offset,
+            bpm: map.song_info.bpm,
+            length: map.song_info.length,
+            duration_sec: map.song_info.duration,
+            offset: map.song_info.offset,
         };
 
         let mut word_entries: Vec<WordEntry> = vec![];

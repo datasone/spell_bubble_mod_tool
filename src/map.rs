@@ -5,12 +5,9 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use yaml_rust::Yaml;
 
-use crate::ext_map_parser::osu::OsuMap;
 use crate::ffmpeg_helper::get_duration;
 use crate::map::interop::{patch_acb_file, patch_score_file, patch_share_data};
 use enums::{Area, Music};
-use std::cmp::max;
-use std::fs;
 use std::path::MAIN_SEPARATOR;
 use std::process::exit;
 
@@ -48,18 +45,13 @@ impl SongInfoText {
 }
 
 #[derive(Default)]
-struct SongInfoNum {
+struct SongInfo {
+    id: Music,
+    music_file: String,
     bpm: u16,
     duration: f32,
     offset: f32,
     length: u16,
-}
-
-#[derive(Default)]
-struct SongInfo {
-    id: Music,
-    music_file: String,
-    info_num: SongInfoNum,
     area: Area,
     info_text: HashMap<Lang, SongInfoText>,
     is_bpm_change: bool,
@@ -147,24 +139,6 @@ impl MapItem {
 
         let stars = yaml["stars"].as_i64().unwrap_or_default() as u8;
 
-        let osu_file_path = yaml["ext_map_file"].as_str().unwrap_or_default();
-        let osu_content = fs::read_to_string(osu_file_path).unwrap();
-        let osu = OsuMap::from_str(&osu_content).unwrap();
-
-        let bpm = if is_first {
-            MapItem::calc_bpm(&osu)
-        } else {
-            bpm
-        };
-        let offset = max(osu.hit_objects.first().unwrap().time() - 100, 0);
-        let offset = offset as f32 / 1000f32;
-
-        let item = MapItem {
-            difficulty,
-            stars,
-            map_data: MapItem::map_data_from_osu(&osu, bpm, duration, offset),
-        };
-
         let info_num = SongInfoNum {
             bpm,
             duration,
@@ -173,84 +147,6 @@ impl MapItem {
         };
 
         (item, info_num)
-    }
-
-    fn calc_bpm(osu: &OsuMap) -> u16 {
-        let osu_bpm = osu
-            .timing_points
-            .iter()
-            .find(|tp| !tp.is_inherited())
-            .unwrap()
-            .bpm()
-            .unwrap();
-        let mut distances: Vec<u32> = vec![];
-
-        let mut i = 0;
-        while i < osu.hit_objects.len() - 1 {
-            distances.push(osu.hit_objects[i + 1].time() - osu.hit_objects[i].time());
-            i += 1
-        }
-
-        let min_distance = *distances.iter().min().unwrap();
-        let max_npm = (60000f32 / min_distance as f32).round() as u16;
-
-        let mut bpm = osu_bpm;
-
-        if max_npm > osu_bpm {
-            println!("Osu BPM: {}\nLargest NPM: {}", osu_bpm, max_npm);
-            println!(
-                "Input desired BPM, it's recommended to be the integral multiple of the osu BPM."
-            );
-            let possible_bpm_list: Vec<u16> =
-                (1..(max_npm / osu_bpm)).map(|i| i * osu_bpm).collect();
-            println!("Possible values: {:?}", possible_bpm_list);
-
-            let mut line = String::new();
-            std::io::stdin().read_line(&mut line).unwrap();
-            bpm = line.trim_end().parse().unwrap();
-        }
-
-        bpm
-    }
-
-    fn map_data_from_osu(osu: &OsuMap, bpm: u16, duration: f32, offset: f32) -> Vec<MapEntry> {
-        let step_in_ms = 60000f32 / bpm as f32;
-
-        let length = (duration / 60f32 * bpm as f32).round() as u32;
-        let mut map_data = vec![MapEntry::B; length as usize];
-
-        for hit_obj in &osu.hit_objects {
-            let idx_range = hit_obj.time()..hit_obj.time() + hit_obj.duration_time() + 1;
-            let idx_range = (idx_range.start as f32 / step_in_ms) as usize
-                ..(idx_range.end as f32 / step_in_ms) as usize + 1;
-
-            for idx in idx_range.clone() {
-                if hit_obj.strong_point() == -1 {
-                    // Spinner
-                    map_data[idx] = MapEntry::S;
-                } else {
-                    map_data[idx] = MapEntry::O;
-                }
-            }
-
-            if hit_obj.strong_point() > 0 {
-                // Slider
-                map_data[idx_range.start] = MapEntry::S;
-                map_data[idx_range.end] = MapEntry::S;
-
-                let segment = idx_range.len() / hit_obj.strong_point() as usize;
-                let strong_idxs: Vec<usize> = (1..hit_obj.strong_point())
-                    .map(|i| idx_range.start + segment * i as usize)
-                    .collect();
-                for idx in strong_idxs {
-                    map_data[idx] = MapEntry::S;
-                }
-            }
-        }
-
-        MapItem::refine_beats(&mut map_data, bpm);
-
-        map_data
     }
 
     fn find_segments(beats: &[MapEntry], find_blank: bool) -> Vec<(usize, usize)> {
@@ -372,8 +268,7 @@ pub struct Map {
 impl Map {
     fn validate(&self) -> bool {
         self.map_items.iter().all(|(difficulty, item)| {
-            *difficulty == item.difficulty
-                && item.map_data.len() == self.song_info.info_num.length as usize
+            *difficulty == item.difficulty && item.map_data.len() == self.song_info.length as usize
         })
     }
 
