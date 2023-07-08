@@ -11,38 +11,43 @@ use std::path::{Path, MAIN_SEPARATOR};
 
 #[repr(C)]
 struct SongEntry {
-    id: *const c_char,
+    id:          *const c_char,
     music_entry: MusicEntry,
-    word_entry: ArrayWrapper,
+    word_entry:  ArrayWrapper,
 }
 
 #[repr(C)]
 struct MusicEntry {
-    area: *const c_char,
-    stars_easy: u8,
-    stars_normal: u8,
-    stars_hard: u8,
+    area:          *const c_char,
+    stars_easy:    u8,
+    stars_normal:  u8,
+    stars_hard:    u8,
     is_bpm_change: u8,
-    bpm: u16,
-    length: u16,
-    duration_sec: f32,
-    offset: f32,
+    bpm:           u16,
+    length:        u16,
+    duration_sec:  f32,
+    offset:        f32,
 }
 
 #[repr(C)]
 struct WordEntry {
-    lang: *const c_char,
-    title: *const c_char,
-    sub_title: *const c_char,
-    title_kana: *const c_char,
-    artist: *const c_char,
-    artist2: *const c_char,
+    lang:        *const c_char,
+    title:       *const c_char,
+    sub_title:   *const c_char,
+    title_kana:  *const c_char,
+    artist:      *const c_char,
+    artist2:     *const c_char,
     artist_kana: *const c_char,
-    original: *const c_char,
+    original:    *const c_char,
 }
 
 extern "C" {
-    fn patch_acb(wav_path: *const c_char, acb_path: *const c_char, out_acb_path: *const c_char, out_awb_path: *const c_char);
+    fn patch_acb(
+        wav_path: *const c_char,
+        acb_path: *const c_char,
+        out_acb_path: *const c_char,
+        out_awb_path: *const c_char,
+    );
     fn patch_score(
         score_path: *const c_char,
         out_path: *const c_char,
@@ -56,7 +61,12 @@ extern "C" {
     );
 }
 
-pub(super) fn patch_acb_file(music_file: &str, acb_path: &str, out_acb_path: &str, out_awb_path: &str) {
+pub(super) fn patch_acb_file(
+    music_file: &str,
+    acb_path: &str,
+    out_acb_path: &str,
+    out_awb_path: &str,
+) {
     let mut wav_path = format!("{}hca_convert_tmp.wav", temp_dir().to_str().unwrap());
     let mut i = 0;
     while Path::new(&wav_path).is_file() {
@@ -117,7 +127,7 @@ pub(super) fn patch_score_file(
 
     unsafe {
         let param = ArrayWrapper {
-            size: param_ptrs.len() as u32,
+            size:  param_ptrs.len() as u32,
             array: mem::transmute(param_ptrs.as_ptr()),
         };
         patch_score(
@@ -162,15 +172,15 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
         }
 
         let music_entry = MusicEntry {
-            area: plus_1s_cstring[area_idx].as_ptr(),
-            stars_easy: stars[0],
-            stars_normal: stars[1],
-            stars_hard: stars[2],
-            is_bpm_change: if map.song_info.is_bpm_change {1} else {0},
-            bpm: map.song_info.bpm,
-            length: map.song_info.length,
-            duration_sec: map.song_info.duration,
-            offset: map.song_info.offset,
+            area:          plus_1s_cstring[area_idx].as_ptr(),
+            stars_easy:    stars[0],
+            stars_normal:  stars[1],
+            stars_hard:    stars[2],
+            is_bpm_change: if map.song_info.is_bpm_change { 1 } else { 0 },
+            bpm:           map.song_info.bpm,
+            length:        map.song_info.length,
+            duration_sec:  map.song_info.duration,
+            offset:        map.song_info.offset,
         };
 
         let mut word_entries: Vec<WordEntry> = vec![];
@@ -195,14 +205,14 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
             let original_idx = vec_push_idx(&mut plus_1s_cstring, original_c);
 
             let word_entry = WordEntry {
-                lang: plus_1s_cstring[lang_idx].as_ptr(),
-                title: plus_1s_cstring[title_idx].as_ptr(),
-                sub_title: plus_1s_cstring[sub_title_idx].as_ptr(),
-                title_kana: plus_1s_cstring[title_kana_idx].as_ptr(),
-                artist: plus_1s_cstring[artist_idx].as_ptr(),
-                artist2: plus_1s_cstring[artist2_idx].as_ptr(),
+                lang:        plus_1s_cstring[lang_idx].as_ptr(),
+                title:       plus_1s_cstring[title_idx].as_ptr(),
+                sub_title:   plus_1s_cstring[sub_title_idx].as_ptr(),
+                title_kana:  plus_1s_cstring[title_kana_idx].as_ptr(),
+                artist:      plus_1s_cstring[artist_idx].as_ptr(),
+                artist2:     plus_1s_cstring[artist2_idx].as_ptr(),
                 artist_kana: plus_1s_cstring[artist_kana_idx].as_ptr(),
-                original: plus_1s_cstring[original_idx].as_ptr(),
+                original:    plus_1s_cstring[original_idx].as_ptr(),
             };
 
             word_entries.push(word_entry);
@@ -212,7 +222,7 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
 
         let wrapper = unsafe {
             ArrayWrapper {
-                size: plus_1s_vec[word_entries_idx].len() as u32,
+                size:  plus_1s_vec[word_entries_idx].len() as u32,
                 array: mem::transmute(plus_1s_vec[word_entries_idx].as_ptr()),
             }
         };
@@ -231,7 +241,7 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
 
     unsafe {
         let wrapper = ArrayWrapper {
-            size: song_entries.len() as u32,
+            size:  song_entries.len() as u32,
             array: mem::transmute(song_entries.as_ptr()),
         };
         patch_share_data_music_data(share_data_c.as_ptr(), out_path_c.as_ptr(), wrapper);

@@ -1,5 +1,4 @@
-use std::error::Error;
-use std::process::Command;
+use std::{error::Error, process::Command};
 
 pub fn get_duration(file_path: &str) -> Result<f32, Box<dyn Error>> {
     let output = Command::new("ffprobe")

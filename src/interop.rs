@@ -1,9 +1,11 @@
-use std::ffi::{c_void, CString};
-use std::os::raw::{c_char, c_int};
+use std::{
+    ffi::{c_void, CString},
+    os::raw::{c_char, c_int},
+};
 
 #[repr(C)]
 pub struct ArrayWrapper {
-    pub size: u32,
+    pub size:  u32,
     pub array: *mut c_void,
 }
 
@@ -21,10 +23,7 @@ extern "C" {
 }
 
 pub fn initialize_assets() {
-    let class_package_path = CString::new(
-        "C:\\Users\\datasone\\work\\UnityAssetBundleHelper\\UnityAssetBundleHelper\\classdata.tpk",
-    )
-    .unwrap();
+    let class_package_path = CString::new("C:\\Users\\datasone\\work\\classdata.tpk").unwrap();
 
     unsafe {
         initialize(class_package_path.as_ptr());

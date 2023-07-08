@@ -28,14 +28,13 @@ impl Default for Lang {
 
 #[derive(Default)]
 struct SongInfoText {
-    title: String,
-    title_kana: String,
-    sub_title: String,
-    artist: String,
-    artist2: String,
+    title:       String,
+    title_kana:  String,
+    sub_title:   String,
+    artist:      String,
+    artist2:     String,
     artist_kana: String,
-    original: String,
-    lang: Lang,
+    original:    String,
 }
 
 impl SongInfoText {

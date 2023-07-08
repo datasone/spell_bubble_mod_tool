@@ -1,13 +1,14 @@
-use std::ffi::{CStr, CString};
-use std::mem;
-use std::os::raw::{c_char, c_void};
-use std::process::exit;
+use std::{
+    ffi::{CStr, CString},
+    os::raw::{c_char, c_void},
+    process::exit,
+};
 
 #[repr(C)]
 pub struct DualArrayWrapper {
-    pub size: u32,
-    pub array: *mut usize,
-    pub size2: u32,
+    pub size:   u32,
+    pub array:  *mut usize,
+    pub size2:  u32,
     pub array2: *mut usize,
 }
 
@@ -22,12 +23,12 @@ fn free_area_music_list(wrapper: DualArrayWrapper) {
         let music_array = std::slice::from_raw_parts(wrapper.array, wrapper.size as usize);
         music_array
             .iter()
-            .for_each(|p| free_dotnet(mem::transmute::<usize, *mut c_void>(*p)));
+            .for_each(|p| free_dotnet(*p as *mut c_void));
         free_dotnet(wrapper.array as *mut c_void);
         let area_array = std::slice::from_raw_parts(wrapper.array2, wrapper.size2 as usize);
         area_array
             .iter()
-            .for_each(|p| free_dotnet(mem::transmute::<usize, *mut c_void>(*p)));
+            .for_each(|p| free_dotnet(*p as *mut c_void));
         free_dotnet(wrapper.array2 as *mut c_void);
     }
 }
@@ -39,12 +40,12 @@ fn main() {
         exit(-1)
     }
 
-    let class_package_path = CString::new(
-        "C:\\Users\\datasone\\work\\UnityAssetBundleHelper\\UnityAssetBundleHelper\\classdata.tpk",
+    let class_package_path = CString::new("C:\\Users\\datasone\\work\\classdata.tpk").unwrap();
+    let share_data_path = CString::new(
+        "C:\\Users\\datasone\\work\\TouhouSB Hack\\RomFS\\TOUHOU Spell Bubble v2359296 \
+         (0100E9D00D6C2800) (UPD)\\Data\\StreamingAssets\\Switch\\share_data",
     )
     .unwrap();
-    let share_data_path =
-        CString::new("C:\\Users\\datasone\\work\\TouhouSB Hack\\share_data").unwrap();
 
     let (result, music_array, area_array) = unsafe {
         initialize(class_package_path.as_ptr());
@@ -53,7 +54,7 @@ fn main() {
         let music_array: Vec<&str> = music_array
             .iter()
             .map(|p| {
-                CStr::from_ptr(mem::transmute::<usize, *const c_char>(*p))
+                CStr::from_ptr(*p as *const c_char)
                     .to_str()
                     .unwrap_or_default()
             })
@@ -62,7 +63,7 @@ fn main() {
         let area_array: Vec<&str> = area_array
             .iter()
             .map(|p| {
-                CStr::from_ptr(mem::transmute::<usize, *const c_char>(*p))
+                CStr::from_ptr(*p as *const c_char)
                     .to_str()
                     .unwrap_or_default()
             })
