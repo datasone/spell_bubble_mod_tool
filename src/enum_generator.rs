@@ -73,33 +73,26 @@ fn main() {
 
     let mut builder = String::from("");
 
-    builder.push_str("#[derive(strum::Display, strum::EnumString, PartialEq)]\npub enum Area {\n");
+    builder.push_str(
+        "#[derive(strum::Display, strum::EnumString, serde::Serialize, serde::Deserialize, \
+         PartialEq, Default)]\npub enum Area {\n",
+    );
     area_array
         .iter()
         .for_each(|s| builder.push_str(&format!("    {},\n", s)));
-    builder.push_str("    #[strum(disabled)]\n    NotDefined,\n}\n\n");
+    builder.push_str("    #[default]\n    #[strum(disabled)]\n    NotDefined,\n}\n\n");
 
     builder.push_str(
-        r"impl Default for Area {
-    fn default() -> Self {
-        Area::NotDefined
-    }
-}",
+        "\n\n#[derive(strum::Display, strum::EnumString, serde::Serialize, serde::Deserialize, \
+         Default)]\npub enum Music {\n",
     );
-
-    builder.push_str("\n\n#[derive(strum::Display, strum::EnumString)]\npub enum Music {\n");
-    music_array
-        .iter()
-        .for_each(|s| builder.push_str(&format!("    {},\n", s)));
+    music_array.iter().for_each(|&s| {
+        if s == "Alice" {
+            builder.push_str("    #[default]\n");
+        }
+        builder.push_str(&format!("    {},\n", s))
+    });
     builder.push_str("}\n");
-
-    builder.push_str(
-        r"impl Default for Music {
-    fn default() -> Self {
-        Music::Alice
-    }
-}",
-    );
 
     std::fs::write(out_path, builder).unwrap();
 

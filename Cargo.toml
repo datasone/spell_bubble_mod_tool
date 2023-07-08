@@ -17,3 +17,8 @@ path = "src/enum_generator.rs"
 clap = { version = "4", features = ["derive"] }
 strum = { version = "0.25.0", features = ["derive"] }
 yaml-rust = "0.4"
+serde = { version = "1", features = ["derive"] }
+toml = "0.7.5"
+maplit = "1.0.2"
+serde_with = "3.0.0"
+itertools = "0.11.0"

@@ -1,32 +1,33 @@
 mod enums;
 mod interop;
 
-use std::collections::HashMap;
-use std::str::FromStr;
-use yaml_rust::Yaml;
+use std::{
+    collections::HashMap, path::MAIN_SEPARATOR, str::FromStr,
+};
+use itertools::Itertools;
 
-use crate::ffmpeg_helper::get_duration;
-use crate::map::interop::{patch_acb_file, patch_score_file, patch_share_data};
 use enums::{Area, Music};
-use std::path::MAIN_SEPARATOR;
-use std::process::exit;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_with::{serde_as, DisplayFromStr};
 
-#[derive(Eq, PartialEq, Hash, strum::Display)]
+
+use crate::{
+    map::interop::{patch_acb_file, patch_score_file, patch_share_data},
+};
+
+#[derive(
+    Eq, PartialEq, Hash, Clone, strum::Display, strum::EnumString, Serialize, Deserialize, Default,
+)]
 enum Lang {
+    #[default]
     JA,
     EN,
     KO,
-    CHS,
-    CHT,
+    Chs,
+    Cht,
 }
 
-impl Default for Lang {
-    fn default() -> Self {
-        Lang::JA
-    }
-}
-
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 struct SongInfoText {
     title:       String,
     title_kana:  String,
@@ -43,60 +44,73 @@ impl SongInfoText {
     }
 }
 
-#[derive(Default)]
+/// (u16, u16) is Index, TargetBpm pair
+#[derive(Default, Serialize, Deserialize)]
+struct BpmChanges(Vec<(u16, u16)>);
+
+impl BpmChanges {
+    fn to_script(&self) -> String {
+        let beats = self.beats_layout().0.into_iter().map(|(i, len)| format!("{i}:{len},")).join("\n");
+        let bpm_changes = self.0.iter().map(|(i, bpm)| format!("[BPM]{i}:{bpm}")).join("\n");
+
+        format!("{}\n{}", beats, bpm_changes)
+    }
+
+    fn beats_layout(&self) -> BeatsLayout {
+        let mut beats = vec![];
+
+        let mut remainder = 0;
+
+        for (i, _) in &self.0 {
+            let line = (i - remainder) / 4 + 1 + beats.len() as u16 / 2;
+            let line_len = (i - remainder) % 4;
+            remainder += line_len;
+
+            if line_len != 0 {
+                beats.push((line, line_len));
+                beats.push((line + 1, 4));
+            }
+        }
+
+        BeatsLayout(beats)
+    }
+}
+
+#[derive(Debug)]
+/// (u16, u16) is Index, LineLength pair
+struct BeatsLayout(Vec<(u16, u16)>);
+
+#[serde_as]
+#[derive(Default, Serialize, Deserialize)]
 struct SongInfo {
-    id: Music,
-    music_file: String,
-    bpm: u16,
-    duration: f32,
-    offset: f32,
-    length: u16,
-    area: Area,
-    info_text: HashMap<Lang, SongInfoText>,
+    id:            Music,
+    music_file:    String,
+    bpm:           u16,
+    duration:      f32,
+    offset:        f32,
+    length:        u16,
+    area:          Area,
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+    info_text:     HashMap<Lang, SongInfoText>,
     is_bpm_change: bool,
+    bpm_changes:   Option<BpmChanges>,
 }
 
 impl SongInfo {
     fn validate(&self) -> bool {
-        self.info_text
-            .iter()
-            .all(|(lang, text)| *lang == text.lang && text.validate())
-    }
-
-    // bpm, duration, length and offset is unfilled
-    fn new_from_yaml(yml: &Yaml) -> SongInfo {
-        let mut song_info = SongInfo::default();
-        let mut info_text = SongInfoText::default();
-
-        let id = yml["song_id"].as_str().unwrap();
-        let id: Music = Music::from_str(id).unwrap();
-        song_info.id = id;
-        song_info.music_file = yml["music_file"].as_str().unwrap().to_owned();
-
-        info_text.lang = Lang::JA;
-        info_text.title = yml["title"].as_str().unwrap().to_owned();
-        info_text.sub_title = yml["sub_title"].as_str().unwrap_or_default().to_owned();
-        info_text.artist = yml["artist"].as_str().unwrap().to_owned();
-        info_text.artist2 = yml["artist2"].as_str().unwrap_or_default().to_owned();
-        info_text.original = yml["original"].as_str().unwrap_or_default().to_owned();
-
-        let area = yml["area"].as_str().unwrap_or_default().to_owned();
-        let area: Area = Area::from_str(&area).unwrap_or_default();
-        song_info.area = area;
-
-        song_info.info_text.insert(Lang::JA, info_text);
-        song_info
+        let bpm_change_validate = self.is_bpm_change ^ self.bpm_changes.is_none();
+        bpm_change_validate && self.info_text.iter().all(|(_lang, text)| text.validate())
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(strum::Display, strum::EnumString, Eq, PartialEq, Hash, Copy, Clone, Serialize, Deserialize)]
 enum Difficulty {
-    EASY,
-    NORMAL,
-    HARD,
+    Easy,
+    Normal,
+    Hard,
 }
 
-#[derive(strum::Display, Debug, Clone, PartialEq)]
+#[derive(strum::Display, strum::EnumString, Debug, Clone, PartialEq)]
 enum MapEntry {
     // Normal
     O,
@@ -107,45 +121,67 @@ enum MapEntry {
     S,
 }
 
-struct MapItem {
-    difficulty: Difficulty,
-    stars: u8,
-    map_data: Vec<MapEntry>,
+#[derive(Clone)]
+struct ScoreData(Vec<MapEntry>);
+
+impl ToString for ScoreData {
+    fn to_string(&self) -> String {
+        self.0.iter().map(|e| e.to_string()).collect()
+    }
 }
 
-impl MapItem {
+impl FromStr for ScoreData {
+    type Err = strum::ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.chars()
+            .map(|c| MapEntry::from_str(&c.to_string()))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Self)
+    }
+}
+
+impl Serialize for ScoreData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for ScoreData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        String::deserialize(deserializer)?
+            .parse()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct MapScore {
+    stars:  u8,
+    scores: ScoreData,
+}
+
+impl MapScore {
+    fn default_with_len(len: usize) -> Self {
+        Self {
+            stars: 0,
+            scores: ScoreData(vec![MapEntry::B; len])
+        }
+    }
+
     fn to_script(&self) -> String {
-        let map_data_in_str: Vec<String> = self.map_data.iter().map(|e| e.to_string()).collect();
+        let map_data_in_str: Vec<String> = self.scores.0.iter().map(|e| e.to_string()).collect();
         let map_str_chunks: Vec<String> = map_data_in_str
             .chunks(4)
             .map(|ch| ch.join(", ") + ",")
             .collect();
         map_str_chunks.join("\n") + " "
-    }
-
-    fn new_from_yaml(
-        yaml: &Yaml,
-        duration: f32,
-        is_first: bool,
-        bpm: u16,
-    ) -> (MapItem, SongInfoNum) {
-        let difficulty = match yaml["level"].as_str().unwrap_or_default() {
-            "easy" => Difficulty::EASY,
-            "normal" => Difficulty::NORMAL,
-            "hard" => Difficulty::HARD,
-            _ => Difficulty::NORMAL,
-        };
-
-        let stars = yaml["stars"].as_i64().unwrap_or_default() as u8;
-
-        let info_num = SongInfoNum {
-            bpm,
-            duration,
-            offset,
-            length: item.map_data.len() as u16,
-        };
-
-        (item, info_num)
     }
 
     fn find_segments(beats: &[MapEntry], find_blank: bool) -> Vec<(usize, usize)> {
@@ -167,14 +203,13 @@ impl MapItem {
 
         if count != 0 {
             segments.push((start, count));
-            count = 0;
         }
 
         segments
     }
 
-    fn split_segments(beats: &mut Vec<MapEntry>, max_length: u8, ratio: f32) {
-        let mut segments: Vec<(usize, usize)> = MapItem::find_segments(beats, false);
+    fn split_segments(beats: &mut [MapEntry], max_length: u8, ratio: f32) {
+        let mut segments: Vec<(usize, usize)> = MapScore::find_segments(beats, false);
 
         while segments.iter().any(|e| e.1 > max_length as usize) {
             let long_segments: Vec<&(usize, usize)> = segments
@@ -210,12 +245,12 @@ impl MapItem {
             if ratio != 1f32 {
                 break;
             }
-            segments = MapItem::find_segments(beats, false);
+            segments = MapScore::find_segments(beats, false);
         }
     }
 
-    fn fill_gap(beats: &mut Vec<MapEntry>, gap_length: f32, bpm: u16) {
-        let blank_segments: Vec<(usize, usize)> = MapItem::find_segments(beats, true);
+    fn fill_gap(beats: &mut [MapEntry], gap_length: f32, bpm: u16) {
+        let blank_segments: Vec<(usize, usize)> = MapScore::find_segments(beats, true);
         let gap_length = gap_length / 60.0 * bpm as f32;
         let gap_length = gap_length.round() as usize;
 
@@ -231,12 +266,13 @@ impl MapItem {
         }
     }
 
-    fn refine_beats(beats: &mut Vec<MapEntry>, bpm: u16) {
-        // TODO: What should be done here? Split longer than 9, prevent too much long segment, putting padding between large space
-        MapItem::split_segments(beats, 9, 1f32);
-        MapItem::split_segments(beats, 5, 0.75);
+    fn refine_beats(beats: &mut [MapEntry], bpm: u16) {
+        // TODO: What should be done here? Split longer than 9, prevent too much long
+        // segment, putting padding between large space
+        MapScore::split_segments(beats, 9, 1f32);
+        MapScore::split_segments(beats, 5, 0.75);
 
-        MapItem::fill_gap(beats, 3f32, bpm);
+        MapScore::fill_gap(beats, 3f32, bpm);
     }
 }
 
@@ -258,58 +294,19 @@ fn split_score(length: usize, split: u8) -> (i32, usize, usize, usize) {
     )
 }
 
-#[derive(Default)]
+#[serde_as]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Map {
-    song_info: SongInfo,
-    map_items: HashMap<Difficulty, MapItem>,
+    song_info:  SongInfo,
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+    map_scores: HashMap<Difficulty, MapScore>,
 }
 
 impl Map {
     fn validate(&self) -> bool {
-        self.map_items.iter().all(|(difficulty, item)| {
-            *difficulty == item.difficulty && item.map_data.len() == self.song_info.length as usize
-        })
-    }
-
-    pub fn new_from_yaml(yaml: &Yaml) -> Vec<Map> {
-        let mut maps: Vec<Map> = vec![];
-
-        let songs = yaml["songs"].as_vec().unwrap();
-        for song in songs {
-            let mut map = Map::default();
-
-            let mut song_info = SongInfo::new_from_yaml(song);
-
-            let music_file = &song_info.music_file;
-            let duration = get_duration(music_file);
-            let duration = match duration {
-                Ok(duration) => duration,
-                Err(err) => {
-                    println!("Error processing music file: {err}!");
-                    exit(3);
-                }
-            };
-
-            let levels = song["levels"].as_vec().unwrap();
-            for level in levels {
-                let is_first = level == levels.get(0).unwrap();
-                let (map_item, info_num) =
-                    MapItem::new_from_yaml(level, duration, is_first, song_info.info_num.bpm);
-                if is_first {
-                    song_info.info_num = info_num
-                };
-
-                map.map_items.insert(map_item.difficulty.clone(), map_item);
-            }
-
-            map.song_info = song_info;
-
-            if map.validate() {
-                maps.push(map)
-            }
-        }
-
-        maps
+        self.map_scores
+            .iter()
+            .all(|(_difficulty, score)| score.scores.0.len() == self.song_info.length as usize)
     }
 
     pub fn patch_files(game_files_dir: &str, out_dir: &str, maps: Vec<Map>) {
@@ -371,7 +368,8 @@ impl Map {
                 &format!("{}{}{}", game_files_dir, MAIN_SEPARATOR, score_path),
                 &format!("{}{}{}", out_base_path, MAIN_SEPARATOR, score_path),
                 &song_id,
-                &map.map_items,
+                &map.map_scores,
+                &map.song_info.bpm_changes,
             );
         }
 
@@ -380,5 +378,128 @@ impl Map {
             &format!("{}{}{}", out_base_path, MAIN_SEPARATOR, share_data_path),
             &maps,
         )
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct MapsConfig {
+    maps: Vec<Map>,
+}
+
+#[cfg(test)]
+mod test {
+    use maplit::hashmap;
+
+    use super::*;
+
+    #[test]
+    fn generate_example_toml() {
+        let map1 = Map {
+            song_info:  SongInfo {
+                id:            Music::Agepoyo,
+                music_file:    "file_path".to_string(),
+                bpm:           150,
+                duration:      150.0,
+                offset:        0.01,
+                length:        1500,
+                area:          Area::Arena,
+                info_text:     hashmap! {
+                    Lang::JA => SongInfoText {
+                        title: "Title".to_string(),
+                        title_kana: "TitleKana".to_string(),
+                        sub_title: "SubTitle".to_string(),
+                        artist: "Artist".to_string(),
+                        artist2: "Artist2".to_string(),
+                        artist_kana: "ArtistKana".to_string(),
+                        original: "Original".to_string(),
+                    }
+                },
+                is_bpm_change: false,
+                bpm_changes: None,
+            },
+            map_scores: hashmap! {
+                Difficulty::Hard => MapScore {
+                    stars: 10,
+                    scores: ScoreData::from_str("SO-SO-SO-SO-SO----SOS-OO").unwrap(),
+                }
+            },
+        };
+
+        let map2 = Map {
+            song_info:  SongInfo {
+                id:            Music::Alice,
+                music_file:    "file_path2".to_string(),
+                bpm:           152,
+                duration:      152.0,
+                offset:        0.02,
+                length:        1502,
+                area:          Area::ArenaNight,
+                info_text:     hashmap! {
+                    Lang::JA => SongInfoText {
+                        title: "Title2".to_string(),
+                        title_kana: "TitleKana2".to_string(),
+                        sub_title: "SubTitle2".to_string(),
+                        artist: "Artist2".to_string(),
+                        artist2: "Artist2_2".to_string(),
+                        artist_kana: "ArtistKana2".to_string(),
+                        original: "Original2".to_string(),
+                    }
+                },
+                is_bpm_change: true,
+                bpm_changes: Some(BpmChanges(vec![(100, 150), (150, 50)])),
+            },
+            map_scores: hashmap! {
+                Difficulty::Hard => MapScore {
+                    stars: 10,
+                    scores: ScoreData::from_str("--SO---SO-SSSOOSOO-OOOS---").unwrap(),
+                }
+            },
+        };
+
+        let maps = MapsConfig {
+            maps: vec![map1, map2],
+        };
+
+        println!("{}", toml::to_string_pretty(&maps).unwrap());
+    }
+
+    #[test]
+    fn test_beats_layout() {
+        let bpm_changes = BpmChanges(
+            vec![
+                (118 * 4, 200),
+                (130 * 4, 400),
+                (206 * 4, 200),
+                (207 * 4, 400),
+                (209 * 4, 200),
+                (210 * 4, 400),
+                (212 * 4, 200),
+                (213 * 4, 400),
+                (215 * 4, 200),
+                (216 * 4, 400),
+                (236 * 4, 200),
+                (240 * 4, 400),
+                (346 * 4, 200),
+                (347 * 4, 400),
+                (403 * 4, 200),
+                (407 * 4, 400),
+                (415 * 4, 50),
+                (415 * 4 + 1, 200),
+                (424 * 4 - 3, 400),
+                (438 * 4 - 3, 200),
+                (439 * 4 - 3, 400),
+                (479 * 4 - 3, 200),
+                (483 * 4 - 3, 400),
+                (491 * 4 - 3, 200),
+                (492 * 4 - 3, 400),
+                (503 * 4 - 3, 200),
+                (503 * 4 - 1, 400),
+                (536 * 4 - 5, 100),
+                (536 * 4 - 3, 400),
+                (567 * 4 - 7, 200),
+            ]
+        );
+
+        println!("{:?}", bpm_changes.beats_layout())
     }
 }

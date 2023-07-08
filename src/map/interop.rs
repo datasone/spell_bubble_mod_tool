@@ -1,13 +1,20 @@
-use crate::ffmpeg_helper::convert_file;
-use crate::interop::ArrayWrapper;
-use crate::map::enums::Area;
-use crate::map::{Difficulty, Map, MapItem};
-use std::collections::HashMap;
-use std::env::temp_dir;
-use std::ffi::CString;
-use std::mem;
-use std::os::raw::c_char;
-use std::path::{Path, MAIN_SEPARATOR};
+use std::{
+    collections::HashMap,
+    env::temp_dir,
+    ffi::CString,
+    mem,
+    os::raw::c_char,
+    path::{Path, MAIN_SEPARATOR},
+};
+use std::collections::HashSet;
+use maplit::hashset;
+
+use crate::{
+    ffmpeg_helper::convert_file,
+    interop::ArrayWrapper,
+    map::{enums::Area, Difficulty, Map, MapScore},
+};
+use crate::map::BpmChanges;
 
 #[repr(C)]
 struct SongEntry {
@@ -102,15 +109,27 @@ pub(super) fn patch_score_file(
     score_file: &str,
     out_path: &str,
     song_id: &str,
-    items: &HashMap<Difficulty, MapItem>,
+    scores: &HashMap<Difficulty, MapScore>,
+    bpm_changes: &Option<BpmChanges>,
 ) {
+    let len = scores.iter().next().unwrap().1.scores.0.len();
+    let mut scores = scores.to_owned();
+    let required_keys = hashset![Difficulty::Easy, Difficulty::Normal, Difficulty::Hard];
+    let provided_keys = scores.keys().cloned().collect::<HashSet<_>>();
+    for difficulty in required_keys.difference(&provided_keys) {
+        scores.insert(*difficulty, MapScore::default_with_len(len));
+    }
+
     let mut params: Vec<CString> = vec![];
 
-    for item in items.values() {
-        let difficulty = match item.difficulty {
-            Difficulty::EASY => "Easy",
-            Difficulty::NORMAL => "Normal",
-            Difficulty::HARD => "Hard",
+    let beat_script = bpm_changes.as_ref().map(|b| b.to_script()).unwrap_or("".to_owned());
+    params.push(CString::new(beat_script).unwrap());
+
+    for (difficulty, item) in scores.iter() {
+        let difficulty = match difficulty {
+            Difficulty::Easy => "Easy",
+            Difficulty::Normal => "Normal",
+            Difficulty::Hard => "Hard",
         };
         let difficulty = CString::new(difficulty).unwrap();
 
@@ -157,15 +176,15 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
         let area_idx = vec_push_idx(&mut plus_1s_cstring, area_c);
 
         let mut stars = vec![0u8; 3];
-        for item in map.map_items.values() {
-            match item.difficulty {
-                Difficulty::EASY => {
+        for (difficulty, item) in map.map_scores.iter() {
+            match difficulty {
+                Difficulty::Easy => {
                     stars[0] = item.stars;
                 }
-                Difficulty::NORMAL => {
+                Difficulty::Normal => {
                     stars[1] = item.stars;
                 }
-                Difficulty::HARD => {
+                Difficulty::Hard => {
                     stars[2] = item.stars;
                 }
             }
@@ -185,8 +204,8 @@ pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Ma
 
         let mut word_entries: Vec<WordEntry> = vec![];
 
-        for text in map.song_info.info_text.values() {
-            let lang_c = CString::new(text.lang.to_string().to_lowercase()).unwrap();
+        for (lang, text) in map.song_info.info_text.iter() {
+            let lang_c = CString::new(lang.to_string().to_lowercase()).unwrap();
             let title_c = CString::new(text.title.clone()).unwrap();
             let sub_title_c = CString::new(text.sub_title.clone()).unwrap();
             let title_kana_c = CString::new(text.title_kana.clone()).unwrap();
