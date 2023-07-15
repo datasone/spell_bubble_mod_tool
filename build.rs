@@ -18,5 +18,10 @@ fn main() {
     println!("cargo:rustc-link-lib=static=System.Globalization.Native.Aot");
     println!("cargo:rustc-link-lib=static=System.IO.Compression.Native.Aot");
 
+    println!(
+        "cargo:rerun-if-changed=C:/Users/datasone/work/UnityAssetBundleHelper/\
+         SpellBubbleModToolHelper/bin/Release/net7.0/win-x64/publish/SpellBubbleModToolHelper.lib"
+    );
+
     println!("cargo:rustc-link-lib=static=SpellBubbleModToolHelper");
 }
