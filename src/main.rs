@@ -37,6 +37,25 @@ enum Commands {
         /// The path to extracted share_data file
         share_data: PathBuf,
     },
+    /// Patch game files given map config toml
+    PatchMap {
+        /// The path to dumped game RomFS files
+        romfs_root: PathBuf,
+        /// Map config toml file
+        maps:       PathBuf,
+    },
+    /// Convert map information (length, bpm, offset, scores) between toml and
+    /// adofai maps Note that incomplete toml can be generated from adofai,
+    /// but in inverted conversion, an existing and valid adofai map must be
+    /// present and only scores conversion is supported.
+    ConvertAdofai {
+        /// The path to adofai map file
+        adofai:     PathBuf,
+        /// The path to map config toml file
+        map:        PathBuf,
+        /// Difficulty to choose inside map config
+        difficulty: map::Difficulty,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -95,6 +114,110 @@ fn main() -> anyhow::Result<()> {
             let out_path = CString::new(assets_switch_out_path.to_string_lossy().as_ref()).unwrap();
 
             unsafe { patch_special_rules(share_data_path.as_ptr(), out_path.as_ptr()) }
+        }
+        Commands::PatchMap { romfs_root, maps } => {
+            let maps: map::MapsConfig = {
+                let content = fs::read_to_string(maps)?;
+                toml::from_str(&content)?
+            };
+
+            for map in maps.maps.iter() {
+                map.validate()?
+            }
+
+            map::Map::patch_files(romfs_root, &out_dir, maps.maps)?;
+        }
+        Commands::ConvertAdofai {
+            adofai,
+            map,
+            difficulty,
+        } => {
+            let gen_json_error = || anyhow::anyhow!("Invalid adofai map");
+
+            let adofai: serde_json::Value = {
+                let content = fs::read_to_string(adofai)?;
+                serde_json::from_str(content.trim_start_matches('\u{feff}'))?
+            };
+
+            let mut maps_config = fs::read_to_string(map)
+                .ok()
+                .and_then(|s| toml::from_str(&s).ok())
+                .unwrap_or(map::MapsConfig {
+                    maps: vec![map::Map::default()],
+                });
+
+            let map_obj = &mut maps_config.maps[0];
+
+            let length = adofai
+                .pointer("/angleData")
+                .and_then(|v| v.as_array())
+                .ok_or_else(gen_json_error)?
+                .len()
+                - 1;
+            let bpm = adofai
+                .pointer("/settings/bpm")
+                .and_then(|v| v.as_u64())
+                .ok_or_else(gen_json_error)? as u16;
+            let offset = adofai
+                .pointer("/settings/offset")
+                .and_then(|v| v.as_u64())
+                .ok_or_else(gen_json_error)? as f32
+                / 1000.0;
+
+            let scores = {
+                let mut scores = vec![map::ScoreEntry::B; length];
+
+                let actions = adofai
+                    .pointer("/actions")
+                    .and_then(|v| v.as_array())
+                    .ok_or_else(gen_json_error)?;
+                for action in actions {
+                    let event_type = action
+                        .pointer("/eventType")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(gen_json_error)?;
+                    if event_type != "PlaySound" {
+                        continue;
+                    }
+
+                    let floor = action
+                        .pointer("/floor")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(gen_json_error)? as usize;
+                    let hit_sound = action
+                        .pointer("/hitsound")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(gen_json_error)?;
+
+                    match hit_sound {
+                        "Hat" => scores[floor - 1] = map::ScoreEntry::O,
+                        "Hammer" => scores[floor - 1] = map::ScoreEntry::S,
+                        _ => continue,
+                    }
+                }
+
+                scores
+            };
+
+            map_obj.song_info.length = length as u16;
+            map_obj.song_info.bpm = bpm;
+            map_obj.song_info.offset = offset;
+            map_obj.map_scores.insert(
+                *difficulty,
+                map::MapScore {
+                    stars:  1,
+                    scores: map::ScoreData(scores),
+                },
+            );
+
+            if map_obj.song_info.info_text.is_empty() {
+                map_obj
+                    .song_info
+                    .info_text
+                    .insert(map::Lang::JA, map::SongInfoText::default());
+            }
+
+            fs::write(map, toml::to_string_pretty(&maps_config)?)?;
         }
     }
 
