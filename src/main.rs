@@ -2,16 +2,9 @@ mod ffmpeg_helper;
 mod interop;
 mod map;
 
-use std::{
-    ffi::CString,
-    fs, mem,
-    path::{PathBuf, MAIN_SEPARATOR},
-    process::exit,
-};
+use std::{ffi::CString, fs, mem, path::PathBuf, process::exit};
 
 use clap::{Parser, Subcommand};
-
-
 
 use crate::interop::{
     initialize_assets, patch_music_and_character, patch_special_rules, ArrayWrapper,
@@ -46,24 +39,15 @@ enum Commands {
     },
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let switch_path = format!(
-        ".{}contents{}0100E9D00D6C2000{}romfs{}Data{}StreamingAssets{}Switch{}",
-        MAIN_SEPARATOR,
-        MAIN_SEPARATOR,
-        MAIN_SEPARATOR,
-        MAIN_SEPARATOR,
-        MAIN_SEPARATOR,
-        MAIN_SEPARATOR,
-        MAIN_SEPARATOR
-    );
+    let switch_path = "./contents/0100E9D00D6C2000/romfs/Data/StreamingAssets/Switch/";
 
     let out_dir = args.outdir;
-    let mut out_path = out_dir;
-    out_path.push(switch_path);
-    fs::create_dir_all(&out_path).unwrap();
+    let mut assets_switch_out_path = out_dir.clone();
+    assets_switch_out_path.push(switch_path);
+    fs::create_dir_all(&assets_switch_out_path)?;
 
     initialize_assets();
 
@@ -77,10 +61,10 @@ fn main() {
                 exit(1)
             };
 
-            out_path.push(format!(".{}share_data", MAIN_SEPARATOR));
+            assets_switch_out_path.push("share_data");
 
             let share_data_path = CString::new(share_data.to_string_lossy().as_ref()).unwrap();
-            let out_path = CString::new(out_path.to_string_lossy().as_ref()).unwrap();
+            let out_path = CString::new(assets_switch_out_path.to_string_lossy().as_ref()).unwrap();
             let left_music_id = CString::new("Lostword").unwrap();
 
             unsafe {
@@ -105,12 +89,14 @@ fn main() {
                 exit(1)
             };
 
-            out_path.push(format!(".{}share_data", MAIN_SEPARATOR));
+            assets_switch_out_path.push("share_data");
 
             let share_data_path = CString::new(share_data.to_string_lossy().as_ref()).unwrap();
-            let out_path = CString::new(out_path.to_string_lossy().as_ref()).unwrap();
+            let out_path = CString::new(assets_switch_out_path.to_string_lossy().as_ref()).unwrap();
 
             unsafe { patch_special_rules(share_data_path.as_ptr(), out_path.as_ptr()) }
         }
     }
+
+    Ok(())
 }

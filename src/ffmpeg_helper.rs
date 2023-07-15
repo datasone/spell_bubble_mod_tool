@@ -1,4 +1,4 @@
-use std::{error::Error, process::Command};
+use std::{error::Error, path::Path, process::Command};
 
 pub fn get_duration(file_path: &str) -> Result<f32, Box<dyn Error>> {
     let output = Command::new("ffprobe")
@@ -18,7 +18,7 @@ pub fn get_duration(file_path: &str) -> Result<f32, Box<dyn Error>> {
     Ok(duration)
 }
 
-pub fn convert_file(file_path: &str, dest_path: &str) -> Result<(), Box<dyn Error>> {
+pub fn convert_file(file_path: &Path, dest_path: &Path) -> std::io::Result<()> {
     Command::new("ffmpeg")
         .arg("-i")
         .arg(file_path)

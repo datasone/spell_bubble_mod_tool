@@ -1,20 +1,19 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env::temp_dir,
     ffi::CString,
     mem,
     os::raw::c_char,
-    path::{Path, MAIN_SEPARATOR},
+    path::Path,
 };
-use std::collections::HashSet;
+
 use maplit::hashset;
 
 use crate::{
     ffmpeg_helper::convert_file,
     interop::ArrayWrapper,
-    map::{enums::Area, Difficulty, Map, MapScore},
+    map::{enums::Area, BpmChanges, Difficulty, Map, MapScore},
 };
-use crate::map::BpmChanges;
 
 #[repr(C)]
 struct SongEntry {
@@ -70,28 +69,26 @@ extern "C" {
 
 pub(super) fn patch_acb_file(
     music_file: &str,
-    acb_path: &str,
-    out_acb_path: &str,
-    out_awb_path: &str,
-) {
-    let mut wav_path = format!("{}hca_convert_tmp.wav", temp_dir().to_str().unwrap());
+    acb_path: &Path,
+    out_acb_path: &Path,
+    out_awb_path: &Path,
+) -> std::io::Result<()> {
+    let mut wav_path = temp_dir();
+    wav_path.push("hca_convert_tmp.wav");
+
     let mut i = 0;
     while Path::new(&wav_path).is_file() {
-        wav_path = format!(
-            "{}{}hca_convert_tmp{}.wav",
-            temp_dir().to_str().unwrap(),
-            MAIN_SEPARATOR,
-            i
-        );
+        wav_path.pop();
+        wav_path.push(format!("hca_convert_tmp{i}.wav"));
         i += 1;
     }
 
-    convert_file(music_file, &wav_path).unwrap();
+    convert_file(Path::new(music_file), &wav_path)?;
 
-    let wav_path_c = CString::new(wav_path.clone()).unwrap();
-    let acb_path_c = CString::new(acb_path).unwrap();
-    let out_acb_path_c = CString::new(out_acb_path).unwrap();
-    let out_awb_path_c = CString::new(out_awb_path).unwrap();
+    let wav_path_c = CString::new(wav_path.to_string_lossy().to_string()).unwrap();
+    let acb_path_c = CString::new(acb_path.to_string_lossy().to_string()).unwrap();
+    let out_acb_path_c = CString::new(out_acb_path.to_string_lossy().to_string()).unwrap();
+    let out_awb_path_c = CString::new(out_awb_path.to_string_lossy().to_string()).unwrap();
 
     unsafe {
         patch_acb(
@@ -102,12 +99,14 @@ pub(super) fn patch_acb_file(
         );
     }
 
-    let _ = std::fs::remove_file(&wav_path);
+    std::fs::remove_file(&wav_path)?;
+
+    Ok(())
 }
 
 pub(super) fn patch_score_file(
-    score_file: &str,
-    out_path: &str,
+    score_file: &Path,
+    out_path: &Path,
     song_id: &str,
     scores: &HashMap<Difficulty, MapScore>,
     bpm_changes: &Option<BpmChanges>,
@@ -122,7 +121,10 @@ pub(super) fn patch_score_file(
 
     let mut params: Vec<CString> = vec![];
 
-    let beat_script = bpm_changes.as_ref().map(|b| b.to_script()).unwrap_or("".to_owned());
+    let beat_script = bpm_changes
+        .as_ref()
+        .map(|b| b.to_script())
+        .unwrap_or("".to_owned());
     params.push(CString::new(beat_script).unwrap());
 
     for (difficulty, item) in scores.iter() {
@@ -140,8 +142,8 @@ pub(super) fn patch_score_file(
 
     let param_ptrs: Vec<*const c_char> = params.iter().map(|s| s.as_ptr()).collect();
 
-    let score_file_c = CString::new(score_file).unwrap();
-    let out_path_c = CString::new(out_path).unwrap();
+    let score_file_c = CString::new(score_file.to_string_lossy().to_string()).unwrap();
+    let out_path_c = CString::new(out_path.to_string_lossy().to_string()).unwrap();
     let song_id_c = CString::new(song_id).unwrap();
 
     unsafe {
@@ -158,9 +160,9 @@ pub(super) fn patch_score_file(
     }
 }
 
-pub(super) fn patch_share_data(share_data_file: &str, out_path: &str, maps: &[Map]) {
-    let share_data_c = CString::new(share_data_file).unwrap();
-    let out_path_c = CString::new(out_path).unwrap();
+pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[Map]) {
+    let share_data_c = CString::new(share_data_file.to_string_lossy().to_string()).unwrap();
+    let out_path_c = CString::new(out_path.to_string_lossy().to_string()).unwrap();
 
     let mut plus_1s_cstring: Vec<CString> = vec![]; // +1s for objects created in loop
     let mut plus_1s_vec: Vec<Vec<WordEntry>> = vec![]; // +1s for objects created in loop
