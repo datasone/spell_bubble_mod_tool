@@ -1,3 +1,4 @@
+mod external_map;
 mod ffmpeg_helper;
 mod interop;
 mod map;
@@ -137,9 +138,7 @@ fn main() -> anyhow::Result<()> {
             difficulty,
             update,
         } => {
-            let gen_json_error = || anyhow::anyhow!("Invalid adofai map");
-
-            let adofai: serde_json::Value = {
+            let mut adofai: external_map::ADoFaIMap = {
                 let content = fs::read_to_string(adofai)?;
                 serde_json::from_str(content.trim_start_matches('\u{feff}'))?
             };
@@ -157,67 +156,22 @@ fn main() -> anyhow::Result<()> {
                 }
             };
 
-            let length = adofai
-                .pointer("/angleData")
-                .and_then(|v| v.as_array())
-                .ok_or_else(gen_json_error)?
-                .len()
-                - 1;
-            let bpm = adofai
-                .pointer("/settings/bpm")
-                .and_then(|v| v.as_u64())
-                .ok_or_else(gen_json_error)? as u16;
-            let offset = adofai
-                .pointer("/settings/offset")
-                .and_then(|v| v.as_u64())
-                .ok_or_else(gen_json_error)? as f32
-                / 1000.0;
-
-            let scores = {
-                let mut scores = vec![map::ScoreEntry::B; length];
-
-                let actions = adofai
-                    .pointer("/actions")
-                    .and_then(|v| v.as_array())
-                    .ok_or_else(gen_json_error)?;
-                for action in actions {
-                    let event_type = action
-                        .pointer("/eventType")
-                        .and_then(|v| v.as_str())
-                        .ok_or_else(gen_json_error)?;
-                    if event_type != "PlaySound" {
-                        continue;
-                    }
-
-                    let floor = action
-                        .pointer("/floor")
-                        .and_then(|v| v.as_u64())
-                        .ok_or_else(gen_json_error)? as usize;
-                    let hit_sound = action
-                        .pointer("/hitsound")
-                        .and_then(|v| v.as_str())
-                        .ok_or_else(gen_json_error)?;
-
-                    match hit_sound {
-                        "Hat" => scores[floor - 1] = map::ScoreEntry::O,
-                        "Hammer" => scores[floor - 1] = map::ScoreEntry::S,
-                        _ => continue,
-                    }
-                }
-
-                scores
-            };
-
-            map_obj.song_info.length = length as u16;
-            map_obj.song_info.bpm = bpm;
-            map_obj.song_info.offset = offset;
+            map_obj.song_info.length = adofai.length() as u16;
+            map_obj.song_info.bpm = adofai.bpm();
+            map_obj.song_info.offset = adofai.offset();
             map_obj.map_scores.insert(
                 *difficulty,
                 map::MapScore {
                     stars:  1,
-                    scores: map::ScoreData(scores),
+                    scores: map::ScoreData(adofai.scores()),
                 },
             );
+
+            let bpm_changes = adofai.bpm_changes();
+            if !bpm_changes.is_empty() {
+                map_obj.song_info.is_bpm_change = true;
+                map_obj.song_info.bpm_changes = map::BpmChanges(bpm_changes).into();
+            }
 
             if map_obj.song_info.info_text.is_empty() {
                 map_obj

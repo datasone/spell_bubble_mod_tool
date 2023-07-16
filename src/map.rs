@@ -63,7 +63,7 @@ impl SongInfoText {
 
 /// (u16, u16) is Index, TargetBpm pair
 #[derive(Default, Serialize, Deserialize)]
-pub struct BpmChanges(Vec<(u16, u16)>);
+pub struct BpmChanges(pub Vec<(u16, u16)>);
 
 impl BpmChanges {
     fn to_script(&self) -> String {
