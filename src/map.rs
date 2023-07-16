@@ -143,7 +143,6 @@ pub struct SongInfo {
     pub id:            Music,
     pub music_file:    String,
     pub bpm:           u16,
-    pub duration:      f32,
     pub offset:        f32,
     pub length:        u16,
     pub area:          Area,
@@ -525,6 +524,39 @@ impl Map {
 
         Ok(())
     }
+
+    fn calc_duration(&self) -> f32 {
+        let score_len = self
+            .map_scores
+            .get(&Difficulty::Hard)
+            .unwrap()
+            .scores
+            .0
+            .len();
+        let init_bpm = self.song_info.bpm as f32;
+
+        match &self.song_info.bpm_changes {
+            Some(bpm_changes) => {
+                let mut duration_sum = 0.0;
+
+                let (first_id, _) = bpm_changes.0.first().unwrap();
+                duration_sum += (first_id + 1) as f32 / init_bpm * 60.0;
+
+                bpm_changes.0.windows(2).for_each(|w| {
+                    let (left_id, left_bpm) = w[0];
+                    let (right_id, _) = w[1];
+
+                    duration_sum += (right_id - left_id) as f32 / left_bpm as f32 * 60.0;
+                });
+
+                let (last_id, last_bpm) = bpm_changes.0.last().unwrap();
+                duration_sum += (score_len as u16 - *last_id - 1) as f32 / *last_bpm as f32 * 60.0;
+
+                duration_sum
+            }
+            None => score_len as f32 / init_bpm * 60.0,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -545,7 +577,6 @@ mod test {
                 id:            Music::Agepoyo,
                 music_file:    "file_path".to_string(),
                 bpm:           150,
-                duration:      150.0,
                 offset:        0.01,
                 length:        1500,
                 area:          Area::Arena,
@@ -576,7 +607,6 @@ mod test {
                 id:            Music::Alice,
                 music_file:    "file_path2".to_string(),
                 bpm:           152,
-                duration:      152.0,
                 offset:        0.02,
                 length:        1502,
                 area:          Area::ArenaNight,

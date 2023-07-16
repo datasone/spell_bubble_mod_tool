@@ -205,7 +205,7 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
             is_bpm_change: if map.song_info.is_bpm_change { 1 } else { 0 },
             bpm:           map.song_info.bpm,
             length:        map.song_info.length,
-            duration_sec:  map.song_info.duration,
+            duration_sec:  map.calc_duration(),
             offset:        map.song_info.offset,
         };
 
