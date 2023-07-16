@@ -55,6 +55,10 @@ enum Commands {
         map:        PathBuf,
         /// Difficulty to choose inside map config
         difficulty: map::Difficulty,
+        #[clap(long, short)]
+        /// Update n-th element of the map config file, if not exists, add a new
+        /// entry
+        update:     Option<usize>,
     },
 }
 
@@ -131,6 +135,7 @@ fn main() -> anyhow::Result<()> {
             adofai,
             map,
             difficulty,
+            update,
         } => {
             let gen_json_error = || anyhow::anyhow!("Invalid adofai map");
 
@@ -142,11 +147,15 @@ fn main() -> anyhow::Result<()> {
             let mut maps_config = fs::read_to_string(map)
                 .ok()
                 .and_then(|s| toml::from_str(&s).ok())
-                .unwrap_or(map::MapsConfig {
-                    maps: vec![map::Map::default()],
-                });
+                .unwrap_or(map::MapsConfig { maps: vec![] });
 
-            let map_obj = &mut maps_config.maps[0];
+            let map_obj = match maps_config.maps.get_mut(update.unwrap_or(0)) {
+                Some(map_obj) => map_obj,
+                None => {
+                    maps_config.maps.push(map::Map::default());
+                    maps_config.maps.last_mut().unwrap()
+                }
+            };
 
             let length = adofai
                 .pointer("/angleData")
