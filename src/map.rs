@@ -180,6 +180,7 @@ impl SongInfo {
     Serialize,
     Deserialize,
 )]
+#[strum(ascii_case_insensitive)]
 pub enum Difficulty {
     Easy,
     Normal,
