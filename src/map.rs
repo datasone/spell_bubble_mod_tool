@@ -73,17 +73,21 @@ impl BpmChanges {
             .into_iter()
             .map(|(i, len)| format!("{i}:{len},"))
             .join("\n");
+
+        let entry_pos = self.entry_pos();
+
         let bpm_changes = self
             .0
             .iter()
-            .map(|(i, bpm)| format!("[BPM]{i}:{bpm}"))
+            .enumerate()
+            .map(|(i, (_, bpm))| format!("[BPM]{}:{bpm}", entry_pos[i].0))
             .join("\n");
 
         format!("{}\n{}", beats, bpm_changes)
     }
 
     fn beats_layout(&self) -> BeatsLayout {
-        let mut beats = vec![];
+        let mut beats = HashMap::new();
 
         let mut remainder = 0;
 
@@ -93,18 +97,45 @@ impl BpmChanges {
             remainder += line_len;
 
             if line_len != 0 {
-                beats.push((line, line_len));
-                beats.push((line + 1, 4));
+                beats.insert(line, line_len);
+                beats.insert(line + 1, 4);
             }
         }
 
         BeatsLayout(beats)
     }
+
+    /// Returns (LineIdx, LinePos)
+    fn entry_pos(&self) -> Vec<(u16, u16)> {
+        let beats_layout = self.beats_layout();
+
+        self.0
+            .iter()
+            .map(|(i, _)| *i)
+            .map(|idx| {
+                let mut idx = idx;
+                let mut line_id = 0;
+                let mut line_length = 4;
+
+                while idx >= line_length {
+                    idx -= line_length;
+
+                    if let Some(&len) = beats_layout.0.get(&(line_id + 2)) {
+                        line_length = len;
+                    }
+
+                    line_id += 1;
+                }
+
+                (line_id + 1, idx)
+            })
+            .collect()
+    }
 }
 
-#[derive(Debug)]
-/// (u16, u16) is Index, LineLength pair
-struct BeatsLayout(Vec<(u16, u16)>);
+#[derive(Debug, Default)]
+/// (u16, u16) is LineIdx, LineLength pair
+struct BeatsLayout(HashMap<u16, u16>);
 
 #[serde_as]
 #[derive(Default, Serialize, Deserialize)]
@@ -247,12 +278,35 @@ impl MapScore {
         }
     }
 
-    fn to_script(&self) -> String {
+    fn to_script(&self, beats_layout: &BeatsLayout) -> String {
         let map_data_in_str: Vec<String> = self.scores.0.iter().map(|e| e.to_string()).collect();
-        let map_str_chunks: Vec<String> = map_data_in_str
-            .chunks(4)
-            .map(|ch| ch.join(", ") + ",")
-            .collect();
+
+        let mut map_str_chunks = Vec::new();
+
+        let mut line_length = 4;
+        let mut current_vec = Vec::new();
+
+        let mut line_id = 0;
+        let mut line_pos = 0;
+
+        for entry_s in map_data_in_str {
+            current_vec.push(entry_s);
+
+            if line_pos < line_length - 1 {
+                line_pos += 1;
+            } else {
+                map_str_chunks.push(current_vec.join(", ") + ",");
+                current_vec = Vec::new();
+
+                if let Some(&len) = beats_layout.0.get(&(line_id + 2)) {
+                    line_length = len;
+                }
+
+                line_id += 1;
+                line_pos = 0;
+            }
+        }
+
         map_str_chunks.join("\n") + " "
     }
 
@@ -538,7 +592,7 @@ mod test {
                     }
                 },
                 is_bpm_change: true,
-                bpm_changes:   Some(BpmChanges(vec![(100, 150), (150, 50)])),
+                bpm_changes:   BpmChanges(vec![(100, 150), (150, 50)]).into(),
             },
             map_scores: hashmap! {
                 Difficulty::Hard => MapScore {
@@ -591,5 +645,57 @@ mod test {
         ]);
 
         println!("{:?}", bpm_changes.beats_layout())
+    }
+
+    #[test]
+    fn test_map_score_to_script() {
+        let map_score = MapScore {
+            stars:  0,
+            scores: ScoreData(vec![
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::B,
+                ScoreEntry::B,
+                ScoreEntry::S,
+                ScoreEntry::S,
+                ScoreEntry::S,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::B,
+                ScoreEntry::O,
+                ScoreEntry::O,
+                ScoreEntry::O,
+                ScoreEntry::O,
+            ]),
+        };
+        let beats_layout = BeatsLayout(hashmap! { 5 => 2, 6 => 4 });
+
+        assert_eq!(
+            map_score.to_script(&beats_layout),
+            "O, -, O, -,\nO, -, O, -,\nO, -, O, -,\nO, -, -, -,\nS, S,\nS, -, O, -,\nO, O, O, O, "
+        );
+    }
+
+    #[test]
+    fn test_bpm_changes() {
+        let bpm_changes = BpmChanges(vec![(1428, 100), (1430, 150)]);
+
+        assert_eq!(
+            bpm_changes.beats_layout().0,
+            hashmap! { 358 => 2, 359 => 4 }
+        );
+        assert_eq!(bpm_changes.entry_pos(), vec![(358, 0), (359, 0)]);
     }
 }

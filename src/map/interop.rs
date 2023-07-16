@@ -12,7 +12,7 @@ use maplit::hashset;
 use crate::{
     ffmpeg_helper::convert_file,
     interop::ArrayWrapper,
-    map::{enums::Area, BpmChanges, Difficulty, Map, MapScore},
+    map::{enums::Area, BeatsLayout, BpmChanges, Difficulty, Map, MapScore},
 };
 
 #[repr(C)]
@@ -127,6 +127,11 @@ pub(super) fn patch_score_file(
         .unwrap_or("".to_owned());
     params.push(CString::new(beat_script).unwrap());
 
+    let beats_layout = bpm_changes
+        .as_ref()
+        .map(|b| b.beats_layout())
+        .unwrap_or(BeatsLayout::default());
+
     for (difficulty, item) in scores.iter() {
         let difficulty = match difficulty {
             Difficulty::Easy => "Easy",
@@ -135,7 +140,7 @@ pub(super) fn patch_score_file(
         };
         let difficulty = CString::new(difficulty).unwrap();
 
-        let score = CString::new(item.to_script()).unwrap();
+        let score = CString::new(item.to_script(&beats_layout)).unwrap();
         params.push(difficulty);
         params.push(score);
     }
