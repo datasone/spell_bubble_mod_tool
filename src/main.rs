@@ -171,7 +171,7 @@ fn main() -> anyhow::Result<()> {
                 .and_then(|s| toml::from_str(&s).ok())
                 .unwrap_or(map::MapsConfig { maps: vec![] });
 
-            let map_obj = match maps_config.maps.get_mut(update.unwrap_or(0)) {
+            let map_obj = match maps_config.maps.get_mut(update.unwrap_or(usize::MAX)) {
                 Some(map_obj) => map_obj,
                 None => {
                     maps_config.maps.push(map::Map::default());
