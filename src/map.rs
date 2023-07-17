@@ -71,6 +71,7 @@ impl BpmChanges {
             .beats_layout()
             .0
             .into_iter()
+            .sorted_by_key(|(i, _)| *i)
             .map(|(i, len)| format!("{i}:{len},"))
             .join("\n");
 
@@ -80,10 +81,10 @@ impl BpmChanges {
             .0
             .iter()
             .enumerate()
-            .map(|(i, (_, bpm))| format!("[BPM]{}:{bpm}", entry_pos[i].0))
+            .map(|(i, (_, bpm))| format!("[BPM]{}:{bpm},", entry_pos[i].0))
             .join("\n");
 
-        format!("{}\n{}", beats, bpm_changes)
+        format!("{}\n{}\n", beats, bpm_changes)
     }
 
     fn beats_layout(&self) -> BeatsLayout {
