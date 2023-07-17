@@ -23,7 +23,7 @@ struct ADoFaIMapAction {
     floor:      u16,
     #[serde(alias = "eventType")]
     event_type: Option<String>,
-    #[serde(alias = "hitSound")]
+    #[serde(alias = "hitsound")]
     hit_sound:  Option<String>,
     #[serde(alias = "speedType")]
     speed_type: Option<String>,
