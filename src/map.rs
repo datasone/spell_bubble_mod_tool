@@ -149,6 +149,7 @@ pub struct SongInfo {
     pub area:          Area,
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     pub info_text:     HashMap<Lang, SongInfoText>,
+    pub prev_start_ms: u32,
     pub is_bpm_change: bool,
     pub bpm_changes:   Option<BpmChanges>,
 }
@@ -402,6 +403,7 @@ impl Map {
                 &acb_path,
                 &out_acb_path,
                 &out_awb_path,
+                map.song_info.prev_start_ms,
             )?;
 
             patch_score_file(
@@ -486,6 +488,7 @@ mod test {
                 },
                 is_bpm_change: false,
                 bpm_changes:   None,
+                prev_start_ms: 0,
             },
             map_scores: hashmap! {
                 Difficulty::Hard => MapScore {
@@ -516,6 +519,7 @@ mod test {
                 },
                 is_bpm_change: true,
                 bpm_changes:   BpmChanges(vec![(100, 150), (150, 50)]).into(),
+                prev_start_ms: 0,
             },
             map_scores: hashmap! {
                 Difficulty::Hard => MapScore {

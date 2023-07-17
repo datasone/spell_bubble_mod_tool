@@ -8,6 +8,7 @@ use std::{
 };
 
 use maplit::hashset;
+use memmem::{Searcher, TwoWaySearcher};
 
 use crate::{
     ffmpeg_helper::convert_file,
@@ -72,6 +73,7 @@ pub(super) fn patch_acb_file(
     acb_path: &Path,
     out_acb_path: &Path,
     out_awb_path: &Path,
+    prev_start_ms: u32,
 ) -> std::io::Result<()> {
     let mut wav_path = temp_dir();
     wav_path.push("hca_convert_tmp.wav");
@@ -99,7 +101,38 @@ pub(super) fn patch_acb_file(
         );
     }
 
+    patch_acb_preview(out_acb_path, prev_start_ms)?;
+
     std::fs::remove_file(&wav_path)?;
+
+    Ok(())
+}
+
+/// Patch preview starting point in acb file
+/// The preview is controlled by the TrackEvent table in acb file
+/// We find "TrackEvent" in the binary, and the offset to the 'T' character is
+/// determined by other bytes. The offset is 0x21 when that byte is 0x11, and
+/// 0x17 when that byte is 0x0A. The value is stored as milliseconds of the
+/// starting point, within big endian.
+fn patch_acb_preview(out_acb_path: &Path, prev_start_ms: u32) -> std::io::Result<()> {
+    let mut acb_content = std::fs::read(out_acb_path)?;
+    let searcher = TwoWaySearcher::new("TrackEvent\x00".as_bytes());
+
+    if let Some(idx) = searcher.search_in(&acb_content) {
+        let offset = match acb_content[idx - 1] {
+            0x11 => 0x21,
+            0x0A => 0x17,
+            _ => 0x21, /* We defaults to 0x21 here, if there is more pattern, at least it won't
+                        * damage much things */
+        };
+
+        let prev_start_ms: [u8; 4] = prev_start_ms.to_be_bytes();
+        for i in 1..4 {
+            acb_content[idx + offset + (i - 1)] = prev_start_ms[i];
+        }
+    }
+
+    std::fs::write(out_acb_path, acb_content)?;
 
     Ok(())
 }
