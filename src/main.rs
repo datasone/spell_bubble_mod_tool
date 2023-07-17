@@ -3,7 +3,12 @@ mod ffmpeg_helper;
 mod interop;
 mod map;
 
-use std::{ffi::CString, fs, mem, path::PathBuf, process::exit};
+use std::{
+    ffi::CString,
+    fs, mem,
+    path::{Path, PathBuf},
+    process::exit,
+};
 
 use clap::{Parser, Subcommand};
 
@@ -14,9 +19,6 @@ use crate::interop::{
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Output path of generated content
-    outdir: PathBuf,
-
     #[clap(subcommand)]
     command: Commands,
 }
@@ -29,6 +31,9 @@ enum Commands {
         /// The path to extracted share_data file
         share_data: PathBuf,
 
+        /// Output path of generated content
+        outdir: PathBuf,
+
         /// Exclude DLC IDs from being unlocked
         #[clap(short, long)]
         exclude: Vec<u16>,
@@ -37,13 +42,20 @@ enum Commands {
     UnlockSpecialRule {
         /// The path to extracted share_data file
         share_data: PathBuf,
+
+        /// Output path of generated content
+        outdir: PathBuf,
     },
     /// Patch game files given map config toml
     PatchMap {
         /// The path to dumped game RomFS files
         romfs_root: PathBuf,
+
         /// Map config toml file
-        maps:       PathBuf,
+        maps: PathBuf,
+
+        /// Output path of generated content
+        outdir: PathBuf,
     },
     /// Convert map information (length, bpm, offset, scores) between toml and
     /// adofai maps Note that incomplete toml can be generated from adofai,
@@ -63,27 +75,33 @@ enum Commands {
     },
 }
 
-fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
-
+fn create_out_dir_structure(out_base: &Path) -> anyhow::Result<PathBuf> {
     let switch_path = "./contents/0100E9D00D6C2000/romfs/Data/StreamingAssets/Switch/";
 
-    let out_dir = args.outdir;
-    let mut assets_switch_out_path = out_dir.clone();
+    let mut assets_switch_out_path = out_base.to_owned();
     assets_switch_out_path.push(switch_path);
     fs::create_dir_all(&assets_switch_out_path)?;
+
+    Ok(assets_switch_out_path)
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
 
     initialize_assets();
 
     match &args.command {
         Commands::UnlockMusicAndCharacter {
             share_data,
+            outdir,
             exclude: exclude_list,
         } => {
             if !share_data.is_file() {
                 println!("share_data file does not exist!");
                 exit(1)
             };
+
+            let mut assets_switch_out_path = create_out_dir_structure(&outdir)?;
 
             assets_switch_out_path.push("share_data");
 
@@ -107,12 +125,13 @@ fn main() -> anyhow::Result<()> {
                 );
             }
         }
-        Commands::UnlockSpecialRule { share_data } => {
+        Commands::UnlockSpecialRule { share_data, outdir } => {
             if !share_data.is_file() {
                 println!("share_data file does not exist!");
                 exit(1)
             };
 
+            let mut assets_switch_out_path = create_out_dir_structure(&outdir)?;
             assets_switch_out_path.push("share_data");
 
             let share_data_path = CString::new(share_data.to_string_lossy().as_ref()).unwrap();
@@ -120,7 +139,11 @@ fn main() -> anyhow::Result<()> {
 
             unsafe { patch_special_rules(share_data_path.as_ptr(), out_path.as_ptr()) }
         }
-        Commands::PatchMap { romfs_root, maps } => {
+        Commands::PatchMap {
+            romfs_root,
+            maps,
+            outdir,
+        } => {
             let maps: map::MapsConfig = {
                 let content = fs::read_to_string(maps)?;
                 toml::from_str(&content)?
@@ -130,7 +153,7 @@ fn main() -> anyhow::Result<()> {
                 map.validate()?
             }
 
-            map::Map::patch_files(romfs_root, &out_dir, maps.maps)?;
+            map::Map::patch_files(romfs_root, outdir, maps.maps)?;
         }
         Commands::ConvertAdofai {
             adofai,
