@@ -1,8 +1,10 @@
 use std::{
     ffi::{CStr, CString},
     os::raw::{c_char, c_void},
-    process::exit,
+    path::PathBuf,
 };
+
+use clap::Parser;
 
 #[repr(C)]
 pub struct DualArrayWrapper {
@@ -33,19 +35,18 @@ fn free_area_music_list(wrapper: DualArrayWrapper) {
     }
 }
 
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    let out_path = args.get(1).unwrap_or_else(|| exit(-1));
-    if out_path.is_empty() {
-        exit(-1)
-    }
+#[derive(Parser, Debug)]
+struct Args {
+    class_package_path: PathBuf,
+    share_data_path:    PathBuf,
+    out_enum_rs_path:   PathBuf,
+}
 
-    let class_package_path = CString::new("C:\\Users\\datasone\\work\\classdata.tpk").unwrap();
-    let share_data_path = CString::new(
-        "C:\\Users\\datasone\\work\\TouhouSB Hack\\RomFS\\TOUHOU Spell Bubble v2359296 \
-         (0100E9D00D6C2800) (UPD)\\Data\\StreamingAssets\\Switch\\share_data",
-    )
-    .unwrap();
+fn main() {
+    let args = Args::parse();
+
+    let class_package_path = CString::new(args.class_package_path.to_str().unwrap()).unwrap();
+    let share_data_path = CString::new(args.share_data_path.to_str().unwrap()).unwrap();
 
     let (result, music_array, area_array) = unsafe {
         initialize(class_package_path.as_ptr());
@@ -94,7 +95,7 @@ fn main() {
     });
     builder.push_str("}\n");
 
-    std::fs::write(out_path, builder).unwrap();
+    std::fs::write(args.out_enum_rs_path, builder).unwrap();
 
     free_area_music_list(result);
 }

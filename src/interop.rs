@@ -1,6 +1,7 @@
 use std::{
     ffi::{c_void, CString},
     os::raw::{c_char, c_int},
+    path::PathBuf,
 };
 
 #[repr(C)]
@@ -23,8 +24,8 @@ extern "C" {
     );
 }
 
-pub fn initialize_assets() {
-    let class_package_path = CString::new("C:\\Users\\datasone\\work\\classdata.tpk").unwrap();
+pub fn initialize_assets(class_package_path: PathBuf) {
+    let class_package_path = CString::new(class_package_path.to_str().unwrap()).unwrap();
 
     unsafe {
         initialize(class_package_path.as_ptr());

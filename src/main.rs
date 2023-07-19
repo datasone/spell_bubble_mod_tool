@@ -17,6 +17,8 @@ use crate::interop::{initialize_assets, patch_features, ArrayWrapper};
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
+    class_package_path: PathBuf,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -93,7 +95,7 @@ fn create_out_dir_structure(out_base: &Path) -> anyhow::Result<PathBuf> {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    initialize_assets();
+    initialize_assets(args.class_package_path);
 
     match &args.command {
         Commands::UnlockFeatures {
