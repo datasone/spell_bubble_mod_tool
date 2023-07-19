@@ -150,6 +150,8 @@ impl ADoFaIMap {
             .collect()
     }
 
+    // This function is only intended to be used by tests for debug purposes
+    #[allow(dead_code)]
     fn convert_from_map(
         map: &crate::map::Map,
         difficulty: crate::map::Difficulty,

@@ -60,6 +60,8 @@ impl SongInfoText {
         }
     }
 
+    // This function is used in unit tests in external_map/adofai
+    #[allow(dead_code)]
     pub fn title(&self) -> String {
         self.title.clone()
     }
