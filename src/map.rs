@@ -95,18 +95,37 @@ impl BpmChanges {
         let mut beats = HashMap::new();
 
         let mut remainder = 0;
+        let mut added_entries = 0;
 
         for (i, _) in &self.0 {
-            let line = (i - remainder) / 4 + 1 + beats.len() as u16 / 2;
+            let line = (i - remainder) / 4 + 1 + added_entries;
             let line_len = (i - remainder) % 4;
             remainder += line_len;
 
             if line_len != 0 {
                 beats.insert(line, line_len);
                 beats.insert(line + 1, 4);
+
+                added_entries += 1;
             }
         }
 
+        let mut duplicate_keys = vec![];
+
+        let mut last_key = beats.keys().next().unwrap();
+        let mut beats_iter = beats.iter().sorted_by_key(|(i, _)| *i);
+        beats_iter.next();
+        for (key, value) in beats_iter {
+            if value == beats.get(last_key).unwrap() {
+                duplicate_keys.push(*key);
+            }
+
+            last_key = key;
+        }
+
+        duplicate_keys.into_iter().for_each(|k| {
+            beats.remove(&k);
+        });
         BeatsLayout(beats)
     }
 
