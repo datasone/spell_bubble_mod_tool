@@ -4,7 +4,7 @@ use std::{
     ffi::CString,
     mem,
     os::raw::c_char,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use maplit::hashset;
@@ -85,7 +85,13 @@ pub(super) fn patch_acb_file(
         i += 1;
     }
 
-    convert_file(Path::new(music_file), &wav_path)?;
+    let music_file = PathBuf::from(music_file);
+    let wav_path = if let Some("wav") = music_file.extension().and_then(|e| e.to_str()) {
+        music_file
+    } else {
+        convert_file(&music_file, &wav_path)?;
+        wav_path
+    };
 
     let wav_path_c = CString::new(wav_path.to_string_lossy().to_string()).unwrap();
     let acb_path_c = CString::new(acb_path.to_string_lossy().to_string()).unwrap();
