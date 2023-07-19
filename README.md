@@ -1,6 +1,6 @@
 # spell_bubble_mod_tool
 
-A helper tool for Touhou Spell Bubble modding. See help of mod_tool
+A helper tool for Touhou Spell Bubble modding. See help of mod_tool for detailed usages.
 
 ## Build Deps
 - Rust toolchain
