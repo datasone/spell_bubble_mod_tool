@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
                 exit(1)
             };
 
-            let mut assets_switch_out_path = create_out_dir_structure(&outdir)?;
+            let mut assets_switch_out_path = create_out_dir_structure(outdir)?;
 
             assets_switch_out_path.push("share_data");
 
@@ -131,7 +131,7 @@ fn main() -> anyhow::Result<()> {
                 exit(1)
             };
 
-            let mut assets_switch_out_path = create_out_dir_structure(&outdir)?;
+            let mut assets_switch_out_path = create_out_dir_structure(outdir)?;
             assets_switch_out_path.push("share_data");
 
             let share_data_path = CString::new(share_data.to_string_lossy().as_ref()).unwrap();
