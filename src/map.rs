@@ -59,6 +59,10 @@ impl SongInfoText {
             Ok(())
         }
     }
+
+    pub fn title(&self) -> String {
+        self.title.clone()
+    }
 }
 
 /// (u16, u16) is Index, TargetBpm pair

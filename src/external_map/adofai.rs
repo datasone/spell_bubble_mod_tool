@@ -1,4 +1,7 @@
+use std::path::Path;
+
 use serde::Deserialize;
+use serde_json::json;
 
 use crate::map::ScoreEntry;
 
@@ -145,5 +148,132 @@ impl ADoFaIMap {
                 _ => None,
             })
             .collect()
+    }
+
+    fn convert_from_map(
+        map: &crate::map::Map,
+        difficulty: crate::map::Difficulty,
+        out_path: &Path,
+    ) -> anyhow::Result<()> {
+        let template_json = include_str!("template.adofai");
+        let mut template_json: serde_json::Value =
+            serde_json::from_str(template_json.trim_start_matches('\u{feff}')).unwrap();
+
+        let score_len = map.map_scores.get(&difficulty).unwrap().scores.0.len();
+        let angle_data = vec![0.into(); score_len];
+        *template_json
+            .pointer_mut("/angleData")
+            .unwrap()
+            .as_array_mut()
+            .unwrap() = angle_data;
+
+        let bpm = map.song_info.bpm;
+        *template_json.pointer_mut("/settings/bpm").unwrap() = bpm.into();
+
+        let offset = map.song_info.offset;
+        let offset = (offset * 1000.0) as i64;
+        *template_json.pointer_mut("/settings/offset").unwrap() = offset.into();
+
+        let base_note_event = json!(
+            {
+                "floor": 0,
+                "eventType": "PlaySound",
+                "hitsound": "Hat",
+                "hitsoundVolume": 100,
+                "angleOffset": 0,
+                "eventTag": ""
+            }
+        );
+
+        let mut actions = map
+            .map_scores
+            .get(&difficulty)
+            .unwrap()
+            .scores
+            .0
+            .iter()
+            .enumerate()
+            .filter_map(|(i, e)| match e {
+                ScoreEntry::O => {
+                    let mut note_event = base_note_event.clone();
+                    *note_event.pointer_mut("/floor").unwrap() = (i + 1).into();
+                    Some(note_event)
+                }
+                ScoreEntry::B => None,
+                ScoreEntry::S => {
+                    let mut note_event = base_note_event.clone();
+                    *note_event.pointer_mut("/floor").unwrap() = (i + 1).into();
+                    *note_event.pointer_mut("/hitsound").unwrap() = "Hammer".into();
+                    Some(note_event)
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if let Some(changes) = map.song_info.bpm_changes.as_ref() {
+            let base_bpm_change_event = json!(
+                {
+                    "floor": 0,
+                    "eventType": "SetSpeed",
+                    "speedType": "Bpm",
+                    "beatsPerMinute": 0,
+                    "bpmMultiplier": 1,
+                    "angleOffset": 0
+                }
+            );
+
+            let changes = changes
+                .0
+                .iter()
+                .map(|(i, bpm)| {
+                    let mut bpm_change_event = base_bpm_change_event.clone();
+                    *bpm_change_event.pointer_mut("/floor").unwrap() = (i + 1).into();
+                    *bpm_change_event.pointer_mut("/beatsPerMinute").unwrap() = (*bpm).into();
+                    bpm_change_event
+                })
+                .collect::<Vec<_>>();
+
+            actions.extend(changes);
+            actions.sort_by_key(|v| v.pointer("/floor").unwrap().as_u64());
+        }
+
+        *template_json
+            .pointer_mut("/actions")
+            .unwrap()
+            .as_array_mut()
+            .unwrap() = actions;
+        std::fs::write(out_path, serde_json::to_string_pretty(&template_json)?)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::map::{Difficulty, Lang};
+
+    #[test]
+    fn test_conversion() {
+        let maps_config = std::fs::read_to_string(format!(
+            "{}/src/external_map/test.toml",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap();
+        let config: crate::map::MapsConfig = toml::from_str(&maps_config).unwrap();
+
+        for map in config.maps {
+            ADoFaIMap::convert_from_map(
+                &map,
+                Difficulty::Hard,
+                &PathBuf::from(format!(
+                    "{}/src/external_map/{}.adofai",
+                    env!("CARGO_MANIFEST_DIR"),
+                    map.song_info.info_text.get(&Lang::JA).unwrap().title()
+                )),
+            )
+            .unwrap();
+        }
     }
 }
