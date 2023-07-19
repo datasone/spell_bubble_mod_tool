@@ -12,9 +12,7 @@ use std::{
 
 use clap::{Parser, Subcommand};
 
-use crate::interop::{
-    initialize_assets, patch_music_and_character, patch_special_rules, ArrayWrapper,
-};
+use crate::interop::{initialize_assets, patch_features, ArrayWrapper};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -27,24 +25,31 @@ struct Args {
 enum Commands {
     /// Unlocks DLC musics and characters (one DLC must be present, defaults to
     /// the first one)
-    UnlockMusicAndCharacter {
+    UnlockFeatures {
         /// The path to extracted share_data file
         share_data: PathBuf,
 
         /// Output path of generated content
         outdir: PathBuf,
+
+        /// Unlock special challenge rules for PvE games
+        #[clap(short, long)]
+        special_rules: bool,
+
+        /// Unlock all musics (including DLC musics and musics in shop, one
+        /// music: "Lostword" is kept unlocked to keep the shop functioning
+        /// normally)
+        #[clap(short, long)]
+        musics: bool,
+
+        /// Unlock DLC characters (one DLC must be present, the program set it
+        /// to the first one)
+        #[clap(short, long)]
+        characters: bool,
 
         /// Exclude DLC IDs from being unlocked
         #[clap(short, long)]
         exclude: Vec<u16>,
-    },
-    /// Unlock special challenge rules for PvE games
-    UnlockSpecialRule {
-        /// The path to extracted share_data file
-        share_data: PathBuf,
-
-        /// Output path of generated content
-        outdir: PathBuf,
     },
     /// Patch game files given map config toml
     PatchMap {
@@ -91,9 +96,12 @@ fn main() -> anyhow::Result<()> {
     initialize_assets();
 
     match &args.command {
-        Commands::UnlockMusicAndCharacter {
+        Commands::UnlockFeatures {
             share_data,
             outdir,
+            special_rules,
+            musics,
+            characters,
             exclude: exclude_list,
         } => {
             if !share_data.is_file() {
@@ -115,29 +123,17 @@ fn main() -> anyhow::Result<()> {
                     array: mem::transmute(exclude_list.as_ptr()),
                 };
 
-                patch_music_and_character(
+                patch_features(
                     share_data_path.as_ptr(),
                     out_path.as_ptr(),
+                    if *musics { 1 } else { 0 },
                     exclude_list_wrapper,
                     left_music_id.as_ptr(),
+                    if *characters { 1 } else { 0 },
                     1,
-                    1,
+                    if *special_rules { 1 } else { 0 },
                 );
             }
-        }
-        Commands::UnlockSpecialRule { share_data, outdir } => {
-            if !share_data.is_file() {
-                println!("share_data file does not exist!");
-                exit(1)
-            };
-
-            let mut assets_switch_out_path = create_out_dir_structure(outdir)?;
-            assets_switch_out_path.push("share_data");
-
-            let share_data_path = CString::new(share_data.to_string_lossy().as_ref()).unwrap();
-            let out_path = CString::new(assets_switch_out_path.to_string_lossy().as_ref()).unwrap();
-
-            unsafe { patch_special_rules(share_data_path.as_ptr(), out_path.as_ptr()) }
         }
         Commands::PatchMap {
             romfs_root,
