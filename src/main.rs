@@ -25,8 +25,7 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Unlocks DLC musics and characters (one DLC must be present, defaults to
-    /// the first one)
+    /// Unlocks some hidden or DLC-related game features
     UnlockFeatures {
         /// The path to extracted share_data file
         share_data: PathBuf,
@@ -44,7 +43,7 @@ enum Commands {
         #[clap(short, long)]
         musics: bool,
 
-        /// Unlock DLC characters (one DLC must be present, the program set it
+        /// Unlock DLC characters (one DLC must be present, the program sets it
         /// to the first one)
         #[clap(short, long)]
         characters: bool,
@@ -64,10 +63,8 @@ enum Commands {
         /// Output path of generated content
         outdir: PathBuf,
     },
-    /// Convert map information (length, bpm, offset, scores) between toml and
-    /// adofai maps Note that incomplete toml can be generated from adofai,
-    /// but in inverted conversion, an existing and valid adofai map must be
-    /// present and only scores conversion is supported.
+    /// Convert map information (length, bpm, offset, scores) from adofai to
+    /// toml files
     ConvertAdofai {
         /// The path to adofai map file
         adofai:     PathBuf,
