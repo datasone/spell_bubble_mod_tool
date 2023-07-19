@@ -29,6 +29,8 @@ struct MapAction {
     speed_type: Option<String>,
     #[serde(alias = "beatsPerMinute")]
     bpm:        Option<u16>,
+    #[serde(alias = "bpmMultiplier")]
+    multiplier: Option<f32>,
 }
 
 struct ParsedAction {
@@ -38,7 +40,12 @@ struct ParsedAction {
 
 enum ActionType {
     Note(ScoreEntry),
-    BpmChange(u16),
+    BpmChange(BpmChangeType),
+}
+
+enum BpmChangeType {
+    Exact(u16),
+    Multiplier(f32),
 }
 
 impl MapAction {
@@ -54,11 +61,13 @@ impl MapAction {
                 ActionType::Note(entry)
             }
             "SetSpeed" => {
-                if self.speed_type.as_ref()? == "Bpm" {
-                    ActionType::BpmChange(self.bpm?)
-                } else {
-                    return None;
-                }
+                let change = match self.speed_type.as_ref()?.as_str() {
+                    "Bpm" => BpmChangeType::Exact(self.bpm?),
+                    "Multiplier" => BpmChangeType::Multiplier(self.multiplier?),
+                    _ => return None,
+                };
+
+                ActionType::BpmChange(change)
             }
             _ => return None,
         };
@@ -118,16 +127,22 @@ impl ADoFaIMap {
             self.parse_actions()
         }
 
+        let mut tracked_bpm = self.settings.bpm;
+
         self.parsed_actions
             .as_ref()
             .unwrap()
             .iter()
-            .filter_map(|action| {
-                if let ActionType::BpmChange(bpm) = action.action {
-                    Some((action.id - 1, bpm))
-                } else {
-                    None
+            .filter_map(|action| match action.action {
+                ActionType::BpmChange(BpmChangeType::Exact(bpm)) => {
+                    tracked_bpm = bpm;
+                    Some((action.id - 1, tracked_bpm))
                 }
+                ActionType::BpmChange(BpmChangeType::Multiplier(mul)) => {
+                    tracked_bpm = (tracked_bpm as f32 * mul) as u16;
+                    Some((action.id - 1, tracked_bpm))
+                }
+                _ => None,
             })
             .collect()
     }
