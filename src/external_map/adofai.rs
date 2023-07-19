@@ -6,20 +6,20 @@ use crate::map::ScoreEntry;
 pub struct ADoFaIMap {
     #[serde(alias = "angleData")]
     angle_data:     Vec<u16>,
-    settings:       ADoFaIMapSettings,
-    actions:        Vec<ADoFaIMapAction>,
+    settings:       MapSettings,
+    actions:        Vec<MapAction>,
     #[serde(skip_deserializing)]
-    parsed_actions: Option<Vec<ADoFaIParsedAction>>,
+    parsed_actions: Option<Vec<ParsedAction>>,
 }
 
 #[derive(Deserialize)]
-struct ADoFaIMapSettings {
+struct MapSettings {
     bpm:    u16,
     offset: u32,
 }
 
 #[derive(Deserialize)]
-struct ADoFaIMapAction {
+struct MapAction {
     floor:      u16,
     #[serde(alias = "eventType")]
     event_type: Option<String>,
@@ -31,18 +31,18 @@ struct ADoFaIMapAction {
     bpm:        Option<u16>,
 }
 
-pub struct ADoFaIParsedAction {
+struct ParsedAction {
     pub id:     u16,
-    pub action: ADoFaIActionType,
+    pub action: ActionType,
 }
 
-pub enum ADoFaIActionType {
+enum ActionType {
     Note(ScoreEntry),
     BpmChange(u16),
 }
 
-impl ADoFaIMapAction {
-    fn to_parsed(&self) -> Option<ADoFaIParsedAction> {
+impl MapAction {
+    fn to_parsed(&self) -> Option<ParsedAction> {
         let action = match self.event_type.as_ref()?.as_str() {
             "PlaySound" => {
                 let entry = match self.hit_sound.as_ref()?.as_str() {
@@ -51,11 +51,11 @@ impl ADoFaIMapAction {
                     _ => return None,
                 };
 
-                ADoFaIActionType::Note(entry)
+                ActionType::Note(entry)
             }
             "SetSpeed" => {
                 if self.speed_type.as_ref()? == "Bpm" {
-                    ADoFaIActionType::BpmChange(self.bpm?)
+                    ActionType::BpmChange(self.bpm?)
                 } else {
                     return None;
                 }
@@ -63,7 +63,7 @@ impl ADoFaIMapAction {
             _ => return None,
         };
 
-        ADoFaIParsedAction {
+        ParsedAction {
             id: self.floor,
             action,
         }
@@ -105,7 +105,7 @@ impl ADoFaIMap {
             .unwrap()
             .iter()
             .for_each(|action| {
-                if let ADoFaIActionType::Note(e) = action.action {
+                if let ActionType::Note(e) = action.action {
                     scores[action.id as usize - 1] = e
                 }
             });
@@ -123,7 +123,7 @@ impl ADoFaIMap {
             .unwrap()
             .iter()
             .filter_map(|action| {
-                if let ADoFaIActionType::BpmChange(bpm) = action.action {
+                if let ActionType::BpmChange(bpm) = action.action {
                     Some((action.id - 1, bpm))
                 } else {
                     None
