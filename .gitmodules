@@ -1,0 +1,3 @@
+[submodule "deps/SpellBubbleModToolHelper"]
+	path = deps/SpellBubbleModToolHelper
+	url = https://github.com/datasone/SpellBubbleModToolHelper

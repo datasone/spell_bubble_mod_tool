@@ -1,16 +1,36 @@
+use std::process::Command;
+
 fn main() {
-    // TODO: All-In-One build.rs after project code is put together.
+    // TODO: Cross-platform
+
+    Command::new("dotnet")
+        .args(&[
+            "publish",
+            "-r",
+            "win-x64",
+            "-c",
+            "Release",
+            "/p:SelfContained=true",
+            "/p:NativeLib=static",
+        ])
+        .current_dir("deps/SpellBubbleModToolHelper")
+        .status()
+        .unwrap();
+
     println!("cargo:rustc-link-lib=user32");
     println!("cargo:rustc-link-lib=ole32");
 
     println!("cargo:rustc-link-arg=/INCLUDE:NativeAOT_StaticInitialization");
-    println!(
-        "cargo:rustc-link-search=C:/Users/datasone/.nuget/packages/runtime.win-x64.microsoft.\
-         dotnet.ilcompiler/7.0.8/sdk"
+
+    let dotnet_ilcompiler_libs_path = format!(
+        "{}/.nuget/packages/runtime.win-x64.microsoft.dotnet.ilcompiler/7.0.8/sdk",
+        env!("USERPROFILE")
     );
+    println!("cargo:rustc-link-search={}", dotnet_ilcompiler_libs_path);
+
     println!(
-        "cargo:rustc-link-search=C:/Users/datasone/work/UnityAssetBundleHelper/\
-         SpellBubbleModToolHelper/bin/Release/net7.0/win-x64/publish"
+        "cargo:rustc-link-search=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/bin/\
+         Release/net7.0/win-x64/publish"
     );
 
     println!("cargo:rustc-link-lib=static=bootstrapperdll");
@@ -19,8 +39,8 @@ fn main() {
     println!("cargo:rustc-link-lib=static=System.IO.Compression.Native.Aot");
 
     println!(
-        "cargo:rerun-if-changed=C:/Users/datasone/work/UnityAssetBundleHelper/\
-         SpellBubbleModToolHelper/bin/Release/net7.0/win-x64/publish/SpellBubbleModToolHelper.lib"
+        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/bin/\
+         Release/net7.0/win-x64/publish/SpellBubbleModToolHelper.lib"
     );
 
     println!("cargo:rustc-link-lib=static=SpellBubbleModToolHelper");
