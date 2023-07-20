@@ -18,7 +18,7 @@ pub struct ADoFaIMap {
 #[derive(Deserialize)]
 struct MapSettings {
     bpm:    u16,
-    offset: u32,
+    offset: i32,
 }
 
 #[derive(Deserialize)]
