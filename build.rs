@@ -23,7 +23,7 @@ fn main() {
     println!("cargo:rustc-link-arg=/INCLUDE:NativeAOT_StaticInitialization");
 
     let dotnet_ilcompiler_libs_path = format!(
-        "{}/.nuget/packages/runtime.win-x64.microsoft.dotnet.ilcompiler/7.0.8/sdk",
+        "{}/.nuget/packages/runtime.win-x64.microsoft.dotnet.ilcompiler/7.0.9/sdk",
         env!("USERPROFILE")
     );
     println!("cargo:rustc-link-search={}", dotnet_ilcompiler_libs_path);
