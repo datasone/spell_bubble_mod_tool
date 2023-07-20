@@ -20,3 +20,8 @@ cargo build --release
 - `enums.rs` needs to be updated alongside the game if you want to use music IDs introduced in game updates.
 - `classdata.tpk` can be downloaded from [AssetsTools.NET releases](https://github.com/nesrak1/AssetsTools.NET/releases).
 - `share_data` is located in `/Data/StreamingAssets/Switch` inside the game RomFS.
+
+## Credits
+- [AssetsTools.NET](https://github.com/nesrak1/AssetsTools.NET)
+- [SonicAudioTools](https://github.com/blueskythlikesclouds/SonicAudioTools)
+- [VGAudio](https://github.com/Thealexbarney/VGAudio)
