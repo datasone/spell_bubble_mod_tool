@@ -114,9 +114,8 @@ impl BpmChanges {
 
         let mut duplicate_keys = vec![];
 
-        let mut last_key = beats.keys().next().unwrap();
         let mut beats_iter = beats.iter().sorted_by_key(|(i, _)| *i);
-        beats_iter.next();
+        let (mut last_key, _) = beats_iter.next().unwrap();
         for (key, value) in beats_iter {
             if value == beats.get(last_key).unwrap() {
                 duplicate_keys.push(*key);
@@ -332,6 +331,10 @@ impl MapScore {
                 line_id += 1;
                 line_pos = 0;
             }
+        }
+
+        if !current_vec.is_empty() {
+            map_str_chunks.push(current_vec.join(", ") + ",");
         }
 
         map_str_chunks.join("\n") + " "
