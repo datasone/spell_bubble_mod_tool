@@ -477,7 +477,7 @@ impl Map {
 
                 duration_sum
             }
-            None => score_len as f32 / init_bpm * 60.0,
+            None => (score_len - 1) as f32 / init_bpm * 60.0,
         }
     }
 }
