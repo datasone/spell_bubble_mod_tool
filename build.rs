@@ -74,7 +74,7 @@ fn main() {
         _ => unreachable!(),
     }
 
-    let dotnet_ilcompiler_libs_path = format!(
+    let dotnet_ilcompiler_sdk_libs_path = format!(
         "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/7.0.9/sdk",
         if let Os::Windows = os {
             std::env::var("USERPROFILE").unwrap()
@@ -83,7 +83,24 @@ fn main() {
         },
         rid,
     );
-    println!("cargo:rustc-link-search={}", dotnet_ilcompiler_libs_path);
+    println!(
+        "cargo:rustc-link-search={}",
+        dotnet_ilcompiler_sdk_libs_path
+    );
+
+    let dotnet_ilcompiler_framework_libs_path = format!(
+        "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/7.0.9/framework",
+        if let Os::Windows = os {
+            std::env::var("USERPROFILE").unwrap()
+        } else {
+            std::env::var("HOME").unwrap()
+        },
+        rid,
+    );
+    println!(
+        "cargo:rustc-link-search={}",
+        dotnet_ilcompiler_framework_libs_path
+    );
 
     println!(
         "cargo:rustc-link-search=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/bin/\
@@ -93,8 +110,27 @@ fn main() {
 
     println!("cargo:rustc-link-lib=static=bootstrapperdll");
     println!("cargo:rustc-link-lib=static=Runtime.ServerGC");
-    println!("cargo:rustc-link-lib=static=System.Globalization.Native.Aot");
-    println!("cargo:rustc-link-lib=static=System.IO.Compression.Native.Aot");
+
+    match os {
+        Os::Windows => {
+            println!("cargo:rustc-link-lib=static=System.Globalization.Native.Aot");
+            println!("cargo:rustc-link-lib=static=System.IO.Compression.Native.Aot");
+        }
+        Os::Linux => {
+            println!("cargo:rustc-link-lib=static=System.Native");
+            println!("cargo:rustc-link-lib=static=System.Globalization.Native");
+            println!("cargo:rustc-link-lib=static=System.IO.Compression.Native");
+            println!("cargo:rustc-link-lib=static=System.Net.Security.Native");
+            println!("cargo:rustc-link-lib=static=System.Security.Cryptography.Native.OpenSsl");
+
+            println!("cargo:rustc-link-lib=static=z");
+            println!("cargo:rustc-flags=-l dylib=stdc++");
+        }
+        Os::MacOs => {
+            // TODO
+        }
+        _ => unreachable!(),
+    }
 
     println!(
         "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/BridgeLib.\
@@ -109,5 +145,9 @@ fn main() {
          SpellBubbleModToolHelper.csproj.user"
     );
 
-    println!("cargo:rustc-link-lib=static=SpellBubbleModToolHelper");
+    if let Os::Windows = os {
+        println!("cargo:rustc-link-lib=static=SpellBubbleModToolHelper");
+    } else {
+        println!("cargo:rustc-link-lib=static:+verbatim=SpellBubbleModToolHelper.a");
+    }
 }
