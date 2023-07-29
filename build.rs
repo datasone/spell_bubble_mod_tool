@@ -3,8 +3,8 @@ use std::process::Command;
 use build_target::{Arch, Os};
 
 fn main() {
-    let dotnet_version = Command::new("dotnet").arg("--version").output().unwrap();
-    let dotnet_version = if dotnet_version.status.success() {
+    let dotnet_version = Command::new("dotnet").arg("--version").output();
+    let dotnet_version = if let Ok(dotnet_version) = dotnet_version {
         dotnet_version.stdout
     } else {
         panic!("This project requires .NET SDK to build")
