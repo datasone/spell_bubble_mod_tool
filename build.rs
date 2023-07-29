@@ -38,7 +38,18 @@ fn main() {
     println!("cargo:rustc-link-lib=static=System.Globalization.Native.Aot");
     println!("cargo:rustc-link-lib=static=System.IO.Compression.Native.Aot");
 
-    println!("cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper");
+    println!(
+        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/\
+         BridgeLib.cs"
+    );
+    println!(
+        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/\
+         SpellBubbleModToolHelper.csproj"
+    );
+    println!(
+        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/\
+         SpellBubbleModToolHelper.csproj.user"
+    );
 
     println!("cargo:rustc-link-lib=static=SpellBubbleModToolHelper");
 }
