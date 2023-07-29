@@ -1,13 +1,50 @@
 use std::process::Command;
+use build_target::{Arch, Os};
 
 fn main() {
-    // TODO: Cross-platform
+    let dotnet_version = Command::new("dotnet").arg("--version").output().unwrap();
+    let dotnet_version = if !dotnet_version.status.success() {
+        dotnet_version.stdout
+    } else {
+        panic!("This project requires .NET SDK to build")
+    };
+    let dotnet_version = dotnet_version[0] - b'0';
+
+    let os = build_target::target_os().unwrap();
+    let arch = build_target::target_arch().unwrap();
+
+    if !matches!(os, Os::Windows | Os::Linux | Os::MacOs) {
+        panic!("This OS {} is not supported by .NET NativeAOT", os.as_str())
+    }
+
+    if matches!(os, Os::MacOs) && dotnet_version < 8 {
+        panic!(".NET NativeAOT on macOS is supported from .NET 8")
+    }
+
+    if !matches!(arch, Arch::X86_64 | Arch::AARCH64) {
+        panic!("This architecture {} is not supported by .NET NativeAOT", arch.as_str())
+    }
+
+    let rid_os = match os {
+        Os::Windows => "win",
+        Os::Linux => "linux",
+        Os::MacOs => "macos",
+        _ => unreachable!(),
+    };
+
+    let rid_arch = match arch {
+        Arch::X86_64 => "x64",
+        Arch::AARCH64 => "arm64",
+        _ => unreachable!(),
+    };
+
+    let rid = format!("{rid_os}-{rid_arch}");
 
     Command::new("dotnet")
         .args(&[
             "publish",
             "-r",
-            "win-x64",
+            &rid,
             "-c",
             "Release",
             "/p:SelfContained=true",
@@ -23,14 +60,16 @@ fn main() {
     println!("cargo:rustc-link-arg=/INCLUDE:NativeAOT_StaticInitialization");
 
     let dotnet_ilcompiler_libs_path = format!(
-        "{}/.nuget/packages/runtime.win-x64.microsoft.dotnet.ilcompiler/7.0.9/sdk",
-        env!("USERPROFILE")
+        "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/7.0.9/sdk",
+        env!("USERPROFILE"),
+        rid,
     );
     println!("cargo:rustc-link-search={}", dotnet_ilcompiler_libs_path);
 
     println!(
         "cargo:rustc-link-search=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/bin/\
-         Release/net7.0/win-x64/publish"
+         Release/net7.0/{}/publish",
+        rid
     );
 
     println!("cargo:rustc-link-lib=static=bootstrapperdll");
