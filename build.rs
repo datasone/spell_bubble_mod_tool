@@ -1,9 +1,10 @@
 use std::process::Command;
+
 use build_target::{Arch, Os};
 
 fn main() {
     let dotnet_version = Command::new("dotnet").arg("--version").output().unwrap();
-    let dotnet_version = if !dotnet_version.status.success() {
+    let dotnet_version = if dotnet_version.status.success() {
         dotnet_version.stdout
     } else {
         panic!("This project requires .NET SDK to build")
@@ -22,7 +23,10 @@ fn main() {
     }
 
     if !matches!(arch, Arch::X86_64 | Arch::AARCH64) {
-        panic!("This architecture {} is not supported by .NET NativeAOT", arch.as_str())
+        panic!(
+            "This architecture {} is not supported by .NET NativeAOT",
+            arch.as_str()
+        )
     }
 
     let rid_os = match os {
@@ -72,7 +76,11 @@ fn main() {
 
     let dotnet_ilcompiler_libs_path = format!(
         "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/7.0.9/sdk",
-        env!("USERPROFILE"),
+        if let Os::Windows = os {
+            std::env::var("USERPROFILE").unwrap()
+        } else {
+            std::env::var("HOME").unwrap()
+        },
         rid,
     );
     println!("cargo:rustc-link-search={}", dotnet_ilcompiler_libs_path);
@@ -89,8 +97,8 @@ fn main() {
     println!("cargo:rustc-link-lib=static=System.IO.Compression.Native.Aot");
 
     println!(
-        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/\
-         BridgeLib.cs"
+        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/BridgeLib.\
+         cs"
     );
     println!(
         "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/\
