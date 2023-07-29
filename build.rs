@@ -54,10 +54,21 @@ fn main() {
         .status()
         .unwrap();
 
-    println!("cargo:rustc-link-lib=user32");
-    println!("cargo:rustc-link-lib=ole32");
+    match os {
+        Os::Windows => {
+            println!("cargo:rustc-link-lib=user32");
+            println!("cargo:rustc-link-lib=ole32");
 
-    println!("cargo:rustc-link-arg=/INCLUDE:NativeAOT_StaticInitialization");
+            println!("cargo:rustc-link-arg=/INCLUDE:NativeAOT_StaticInitialization");
+        }
+        Os::Linux => {
+            println!("cargo:rustc-link-arg=-Wl,--require-defined,NativeAOT_StaticInitialization")
+        }
+        Os::MacOs => {
+            println!("cargo:rustc-link-arg=-Wl,-u,_NativeAOT_StaticInitialization")
+        }
+        _ => unreachable!(),
+    }
 
     let dotnet_ilcompiler_libs_path = format!(
         "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/7.0.9/sdk",
