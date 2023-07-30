@@ -397,10 +397,15 @@ impl Map {
             let song_id = map.song_info.id.to_string();
 
             let mut acb_path = game_files_dir.to_owned();
-            acb_path.push(format!(
-                "StreamingAssets/Sounds/BGM_{}.acb",
-                song_id.to_uppercase()
-            ));
+            // The corresponding acb file was used for patching, but that causes many
+            // problems (unable to play, early stop freeze, not stopping freeze), a fixed
+            // DLC music is used instead now.
+
+            // acb_path.push(format!(
+            //     "StreamingAssets/Sounds/BGM_{}.acb",
+            //     song_id.to_uppercase()
+            // ));
+            acb_path.push("StreamingAssets/Sounds/BGM_KARISUMA.acb");
 
             let mut out_acb_path = out_base_path.to_owned();
             out_acb_path.push(format!(
