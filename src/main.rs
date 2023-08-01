@@ -11,6 +11,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
+use itertools::Itertools;
 
 use crate::interop::{initialize_assets, patch_features, ArrayWrapper};
 
@@ -72,10 +73,13 @@ enum Commands {
         map:        PathBuf,
         /// Difficulty to choose inside map config
         difficulty: map::Difficulty,
-        #[clap(long, short)]
         /// Update n-th element of the map config file, if not exists, add a new
         /// entry
+        #[clap(long, short)]
         update:     Option<usize>,
+        /// List current maps in the config file
+        #[clap(long, short)]
+        list:       bool,
     },
 }
 
@@ -155,6 +159,7 @@ fn main() -> anyhow::Result<()> {
             map,
             difficulty,
             update,
+            list,
         } => {
             let mut adofai: external_map::ADoFaIMap = {
                 let content = fs::read_to_string(adofai)?;
@@ -165,6 +170,27 @@ fn main() -> anyhow::Result<()> {
                 .ok()
                 .and_then(|s| toml::from_str(&s).ok())
                 .unwrap_or(map::MapsConfig { maps: vec![] });
+
+            if *list {
+                let output = maps_config
+                    .maps
+                    .iter()
+                    .enumerate()
+                    .map(|(i, m)| {
+                        let title = m
+                            .song_info
+                            .info_text
+                            .iter()
+                            .next()
+                            .map(|(_, it)| it.title())
+                            .unwrap_or_default();
+                        format!("Map {i}: {title}")
+                    })
+                    .join("\n");
+
+                println!("{output}");
+                return Ok(());
+            }
 
             let map_obj = match maps_config.maps.get_mut(update.unwrap_or(usize::MAX)) {
                 Some(map_obj) => map_obj,
