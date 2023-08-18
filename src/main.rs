@@ -184,7 +184,13 @@ fn main() -> anyhow::Result<()> {
                             .next()
                             .map(|(_, it)| it.title())
                             .unwrap_or_default();
-                        format!("Map {i}: {title}")
+
+                        let effective_bpm = m.effective_bpm();
+                        let replace = m.song_info.id;
+
+                        format!(
+                            "Map {i}: {title}, effective BPM: {effective_bpm}, replaces: {replace}"
+                        )
                     })
                     .join("\n");
 

@@ -76,7 +76,7 @@ fn main() {
 
     builder.push_str(
         "#[derive(strum::Display, strum::EnumString, serde::Serialize, serde::Deserialize, \
-         PartialEq, Default)]\npub enum Area {\n",
+         PartialEq, Default, Clone, Copy)]\npub enum Area {\n",
     );
     area_array
         .iter()
@@ -85,7 +85,7 @@ fn main() {
 
     builder.push_str(
         "\n\n#[derive(strum::Display, strum::EnumString, serde::Serialize, serde::Deserialize, \
-         Default)]\npub enum Music {\n",
+         Default, Clone, Copy)]\npub enum Music {\n",
     );
     music_array.iter().for_each(|&s| {
         if s == "Alice" {

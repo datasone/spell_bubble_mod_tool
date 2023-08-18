@@ -453,6 +453,15 @@ impl Map {
         Ok(())
     }
 
+    pub fn effective_bpm(&self) -> u16 {
+        if self.song_info.is_bpm_change {
+            let beats_count = self.map_scores.values().next().unwrap().scores.0.len();
+            (beats_count as f32 / self.duration() * 60.0) as u16
+        } else {
+            self.song_info.bpm
+        }
+    }
+
     fn duration(&self) -> f32 {
         let score_len = self
             .map_scores
