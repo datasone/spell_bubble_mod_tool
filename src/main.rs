@@ -68,11 +68,13 @@ enum Commands {
     /// toml files
     ConvertAdofai {
         /// The path to adofai map file
-        adofai:     PathBuf,
+        #[clap(required_unless_present("list"))]
+        adofai:     Option<PathBuf>,
         /// The path to map config toml file
         map:        PathBuf,
         /// Difficulty to choose inside map config
-        difficulty: map::Difficulty,
+        #[clap(required_unless_present("list"))]
+        difficulty: Option<map::Difficulty>,
         /// Update n-th element of the map config file, if not exists, add a new
         /// entry
         #[clap(long, short)]
@@ -161,11 +163,6 @@ fn main() -> anyhow::Result<()> {
             update,
             list,
         } => {
-            let mut adofai: external_map::ADoFaIMap = {
-                let content = fs::read_to_string(adofai)?;
-                serde_json::from_str(content.trim_start_matches('\u{feff}'))?
-            };
-
             let mut maps_config = fs::read_to_string(map)
                 .ok()
                 .and_then(|s| toml::from_str(&s).ok())
@@ -198,6 +195,11 @@ fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
 
+            let mut adofai: external_map::ADoFaIMap = {
+                let content = fs::read_to_string(adofai.as_ref().unwrap())?;
+                serde_json::from_str(content.trim_start_matches('\u{feff}'))?
+            };
+
             let map_obj = match maps_config.maps.get_mut(update.unwrap_or(usize::MAX)) {
                 Some(map_obj) => map_obj,
                 None => {
@@ -210,7 +212,7 @@ fn main() -> anyhow::Result<()> {
             map_obj.song_info.bpm = adofai.bpm();
             map_obj.song_info.offset = adofai.offset();
             map_obj.map_scores.insert(
-                *difficulty,
+                difficulty.unwrap(),
                 map::MapScore {
                     stars:  1,
                     scores: map::ScoreData(adofai.scores()),
