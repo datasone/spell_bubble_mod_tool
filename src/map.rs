@@ -453,7 +453,7 @@ impl Map {
         Ok(())
     }
 
-    fn calc_duration(&self) -> f32 {
+    fn duration(&self) -> f32 {
         let score_len = self
             .map_scores
             .get(&Difficulty::Hard)

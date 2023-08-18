@@ -45,7 +45,7 @@ fn main() {
     let rid = format!("{rid_os}-{rid_arch}");
 
     Command::new("dotnet")
-        .args(&[
+        .args([
             "publish",
             "-r",
             &rid,

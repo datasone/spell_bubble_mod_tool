@@ -13,7 +13,7 @@ use memmem::{Searcher, TwoWaySearcher};
 use crate::{
     ffmpeg_helper::convert_file,
     interop::ArrayWrapper,
-    map::{enums::Area, BeatsLayout, BpmChanges, Difficulty, Map, MapScore},
+    map::{enums::Area, BpmChanges, Difficulty, Map, MapScore},
 };
 
 #[repr(C)]
@@ -169,7 +169,7 @@ pub(super) fn patch_score_file(
     let beats_layout = bpm_changes
         .as_ref()
         .map(|b| b.beats_layout())
-        .unwrap_or(BeatsLayout::default());
+        .unwrap_or_default();
 
     for (difficulty, item) in scores.iter() {
         let difficulty = match difficulty {
@@ -221,7 +221,7 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
         };
         let area_idx = vec_push_idx(&mut plus_1s_cstring, area_c);
 
-        let mut stars = vec![0u8; 3];
+        let mut stars = [0u8; 3];
         for (difficulty, item) in map.map_scores.iter() {
             match difficulty {
                 Difficulty::Easy => {
@@ -244,7 +244,7 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
             is_bpm_change: if map.song_info.is_bpm_change { 1 } else { 0 },
             bpm:           map.song_info.bpm,
             length:        map.song_info.length,
-            duration_sec:  map.calc_duration(),
+            duration_sec:  map.duration(),
             offset:        map.song_info.offset,
         };
 
