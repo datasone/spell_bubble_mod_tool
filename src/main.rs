@@ -214,14 +214,12 @@ fn main() -> anyhow::Result<()> {
             map_obj.map_scores.insert(
                 difficulty.unwrap(),
                 map::MapScore {
-                    stars:  1,
                     scores: map::ScoreData(adofai.scores()),
                 },
             );
 
             let bpm_changes = adofai.bpm_changes();
             if !bpm_changes.is_empty() {
-                map_obj.song_info.is_bpm_change = true;
                 map_obj.song_info.bpm_changes = map::BpmChanges(bpm_changes).into();
             }
 

@@ -16,8 +16,6 @@ pub enum InvalidMapError {
     EmptyTitle,
     #[error("Empty artist provided")]
     EmptyArtist,
-    #[error("Unmatched BPM change info")]
-    UnmatchedBPMChange,
     #[error("Empty song info text provided")]
     EmptySongInfoText,
     #[error("Empty map scores provided")]
@@ -174,7 +172,6 @@ pub struct SongInfo {
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     pub info_text:     HashMap<Lang, SongInfoText>,
     pub prev_start_ms: u32,
-    pub is_bpm_change: bool,
     pub bpm_changes:   Option<BpmChanges>,
 }
 
@@ -184,13 +181,15 @@ impl SongInfo {
             text.validate()?
         }
 
-        if self.is_bpm_change ^ self.bpm_changes.is_some() {
-            Err(InvalidMapError::UnmatchedBPMChange)
-        } else if self.info_text.is_empty() {
+        if self.info_text.is_empty() {
             Err(InvalidMapError::EmptySongInfoText)
         } else {
             Ok(())
         }
+    }
+
+    fn is_bpm_change(&self) -> bool {
+        self.bpm_changes.is_some()
     }
 }
 
@@ -292,14 +291,12 @@ impl<'de> Deserialize<'de> for ScoreData {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MapScore {
-    pub stars:  u8,
     pub scores: ScoreData,
 }
 
 impl MapScore {
     fn default_with_len(len: usize) -> Self {
         Self {
-            stars:  0,
             scores: ScoreData(vec![ScoreEntry::B; len]),
         }
     }
@@ -453,10 +450,10 @@ impl Map {
         Ok(())
     }
 
-    pub fn effective_bpm(&self) -> u16 {
-        if self.song_info.is_bpm_change {
+    pub fn effective_bpm(&self) -> f32 {
+        if self.song_info.is_bpm_change() {
             let beats_count = self.map_scores.values().next().unwrap().scores.0.len();
-            (beats_count as f32 / self.duration() * 60.0) as u16
+            beats_count as f32 / self.duration() * 60.0
         } else {
             self.song_info.bpm
         }
@@ -528,13 +525,11 @@ mod test {
                         original: "Original".to_string(),
                     }
                 },
-                is_bpm_change: false,
                 bpm_changes:   None,
                 prev_start_ms: 0,
             },
             map_scores: hashmap! {
                 Difficulty::Hard => MapScore {
-                    stars: 10,
                     scores: ScoreData::from_str("SO-SO-SO-SO-SO----SOS-OO").unwrap(),
                 }
             },
@@ -559,13 +554,11 @@ mod test {
                         original: "Original2".to_string(),
                     }
                 },
-                is_bpm_change: true,
                 bpm_changes:   BpmChanges(vec![(100, 150), (150, 50)]).into(),
                 prev_start_ms: 0,
             },
             map_scores: hashmap! {
                 Difficulty::Hard => MapScore {
-                    stars: 10,
                     scores: ScoreData::from_str("--SO---SO-SSSOOSOO-OOOS---").unwrap(),
                 }
             },
@@ -619,7 +612,6 @@ mod test {
     #[test]
     fn test_map_score_to_script() {
         let map_score = MapScore {
-            stars:  0,
             scores: ScoreData(vec![
                 ScoreEntry::O,
                 ScoreEntry::B,

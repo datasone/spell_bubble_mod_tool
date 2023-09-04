@@ -25,15 +25,10 @@ struct SongEntry {
 
 #[repr(C)]
 struct MusicEntry {
-    area:          *const c_char,
-    stars_easy:    u8,
-    stars_normal:  u8,
-    stars_hard:    u8,
-    is_bpm_change: u8,
-    bpm:           u16,
-    length:        u16,
-    duration_sec:  f32,
-    offset:        f32,
+    area:   *const c_char,
+    bpm:    f32,
+    length: u16,
+    offset: f32,
 }
 
 #[repr(C)]
@@ -221,31 +216,11 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
         };
         let area_idx = vec_push_idx(&mut plus_1s_cstring, area_c);
 
-        let mut stars = [0u8; 3];
-        for (difficulty, item) in map.map_scores.iter() {
-            match difficulty {
-                Difficulty::Easy => {
-                    stars[0] = item.stars;
-                }
-                Difficulty::Normal => {
-                    stars[1] = item.stars;
-                }
-                Difficulty::Hard => {
-                    stars[2] = item.stars;
-                }
-            }
-        }
-
         let music_entry = MusicEntry {
-            area:          plus_1s_cstring[area_idx].as_ptr(),
-            stars_easy:    stars[0],
-            stars_normal:  stars[1],
-            stars_hard:    stars[2],
-            is_bpm_change: if map.song_info.is_bpm_change { 1 } else { 0 },
-            bpm:           map.song_info.bpm,
-            length:        map.song_info.length,
-            duration_sec:  map.duration(),
-            offset:        map.song_info.offset,
+            area:   plus_1s_cstring[area_idx].as_ptr(),
+            bpm:    map.song_info.bpm,
+            length: map.song_info.length,
+            offset: map.song_info.offset,
         };
 
         let mut word_entries: Vec<WordEntry> = vec![];
