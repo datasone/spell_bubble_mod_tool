@@ -167,7 +167,7 @@ struct BeatsLayout(HashMap<u16, u16>);
 pub struct SongInfo {
     pub id:            Music,
     pub music_file:    String,
-    pub bpm:           u16,
+    pub bpm:           f32,
     pub offset:        f32,
     pub length:        u16,
     pub area:          Area,
@@ -470,7 +470,7 @@ impl Map {
             .scores
             .0
             .len();
-        let init_bpm = self.song_info.bpm as f32;
+        let init_bpm = self.song_info.bpm;
 
         match &self.song_info.bpm_changes {
             Some(bpm_changes) => {
@@ -513,7 +513,7 @@ mod test {
             song_info:  SongInfo {
                 id:            Music::Agepoyo,
                 music_file:    "file_path".to_string(),
-                bpm:           150,
+                bpm:           150.0,
                 offset:        0.01,
                 length:        1500,
                 area:          Area::Arena,
@@ -544,7 +544,7 @@ mod test {
             song_info:  SongInfo {
                 id:            Music::Alice,
                 music_file:    "file_path2".to_string(),
-                bpm:           152,
+                bpm:           152.0,
                 offset:        0.02,
                 length:        1502,
                 area:          Area::ArenaNight,

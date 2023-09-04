@@ -17,7 +17,7 @@ pub struct ADoFaIMap {
 
 #[derive(Deserialize)]
 struct MapSettings {
-    bpm:    u16,
+    bpm:    f32,
     offset: i32,
 }
 
@@ -97,7 +97,7 @@ impl ADoFaIMap {
         self.angle_data.len()
     }
 
-    pub fn bpm(&self) -> u16 {
+    pub fn bpm(&self) -> f32 {
         self.settings.bpm
     }
 
@@ -130,7 +130,7 @@ impl ADoFaIMap {
             self.parse_actions()
         }
 
-        let mut tracked_bpm = self.settings.bpm;
+        let mut tracked_bpm = self.settings.bpm as u16;
 
         self.parsed_actions
             .as_ref()
