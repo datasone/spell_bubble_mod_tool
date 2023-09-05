@@ -4,8 +4,11 @@ mod interop;
 mod map;
 
 use std::{
-    ffi::CString,
-    fs, mem,
+    ffi::{c_char, c_int, CString},
+    fs,
+    fs::File,
+    io::{BufWriter, Write},
+    mem,
     path::{Path, PathBuf},
     process::exit,
 };
@@ -13,7 +16,7 @@ use std::{
 use clap::{Parser, Subcommand};
 use itertools::Itertools;
 
-use crate::interop::{initialize_assets, patch_features, ArrayWrapper};
+use crate::interop::{initialize_assets, ArrayWrapper};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -95,6 +98,19 @@ fn create_out_dir_structure(out_base: &Path) -> anyhow::Result<PathBuf> {
     Ok(assets_switch_out_path)
 }
 
+extern "C" {
+    pub fn patch_features(
+        share_data_path: *const c_char,
+        out_path: *const c_char,
+        patch_music: c_int, // C style bool, 0 for false, others for true
+        excluded_dlcs: ArrayWrapper,
+        left_music_id: *const c_char, // Unused for now
+        patch_characters: c_int,      // C style bool, 0 for false, others for true
+        character_target_dlc: c_int,  // Unused for now
+        patch_special_rules: c_int,   // C style bool, 0 for false, others for true
+    );
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
@@ -124,8 +140,9 @@ fn main() -> anyhow::Result<()> {
 
             unsafe {
                 let exclude_list_wrapper = ArrayWrapper {
-                    size:  exclude_list.len() as u32,
-                    array: mem::transmute(exclude_list.as_ptr()),
+                    managed: 0,
+                    size:    exclude_list.len() as u32,
+                    array:   mem::transmute(exclude_list.as_ptr()),
                 };
 
                 patch_features(

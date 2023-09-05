@@ -1,38 +1,65 @@
 use std::{
     collections::{HashMap, HashSet},
     env::temp_dir,
-    ffi::CString,
+    ffi::{c_void, CStr, CString},
     mem,
     os::raw::c_char,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
+use itertools::izip;
 use maplit::hashset;
 use memmem::{Searcher, TwoWaySearcher};
 
 use crate::{
     ffmpeg_helper::convert_file,
-    interop::ArrayWrapper,
-    map::{enums::Area, BpmChanges, Difficulty, Map, MapScore},
+    interop::{free_dotnet, ArrayWrapper, DualArrayWrapper, StringWrapper},
+    map::{
+        enums::{Area, Music},
+        BeatsLayout, BpmChanges, Difficulty, Lang, Map, MapScore, SongInfo, SongInfoText,
+    },
 };
 
 #[repr(C)]
 struct SongEntry {
-    id:          *const c_char,
-    music_entry: MusicEntry,
-    word_entry:  ArrayWrapper,
+    /// 0 for structs from Rust, 1 for C#
+    managed:      u32,
+    id:           *const c_char,
+    music_entry:  MusicEntry,
+    word_entries: ArrayWrapper,
+}
+
+impl Drop for SongEntry {
+    fn drop(&mut self) {
+        if self.managed == 1 {
+            unsafe { free_dotnet(self.id as *mut c_void) }
+        }
+    }
 }
 
 #[repr(C)]
 struct MusicEntry {
-    area:   *const c_char,
-    bpm:    f32,
-    length: u16,
-    offset: f32,
+    /// 0 for structs from Rust, 1 for C#
+    managed: u32,
+    area:    *const c_char,
+    bpm:     f32,
+    length:  u16,
+    offset:  f32,
+}
+
+impl Drop for MusicEntry {
+    fn drop(&mut self) {
+        if self.managed == 1 {
+            unsafe { free_dotnet(self.area as *mut c_void) }
+        }
+    }
 }
 
 #[repr(C)]
 struct WordEntry {
+    /// 0 for structs from Rust, 1 for C#
+    managed:     u32,
     lang:        *const c_char,
     title:       *const c_char,
     sub_title:   *const c_char,
@@ -41,6 +68,27 @@ struct WordEntry {
     artist2:     *const c_char,
     artist_kana: *const c_char,
     original:    *const c_char,
+}
+
+impl Drop for WordEntry {
+    fn drop(&mut self) {
+        if self.managed == 1 {
+            unsafe {
+                [
+                    self.lang,
+                    self.title,
+                    self.sub_title,
+                    self.title_kana,
+                    self.artist,
+                    self.artist2,
+                    self.artist_kana,
+                    self.original,
+                ]
+                .into_iter()
+                .for_each(|p| free_dotnet(p as *mut c_void))
+            }
+        }
+    }
 }
 
 extern "C" {
@@ -187,8 +235,9 @@ pub(super) fn patch_score_file(
 
     unsafe {
         let param = ArrayWrapper {
-            size:  param_ptrs.len() as u32,
-            array: mem::transmute(param_ptrs.as_ptr()),
+            managed: 0,
+            size:    param_ptrs.len() as u32,
+            array:   mem::transmute(param_ptrs.as_ptr()),
         };
         patch_score(
             score_file_c.as_ptr(),
@@ -217,10 +266,11 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
         let area_idx = vec_push_idx(&mut plus_1s_cstring, area_c);
 
         let music_entry = MusicEntry {
-            area:   plus_1s_cstring[area_idx].as_ptr(),
-            bpm:    map.song_info.bpm,
-            length: map.song_info.length,
-            offset: map.song_info.offset,
+            managed: 0,
+            area:    plus_1s_cstring[area_idx].as_ptr(),
+            bpm:     map.song_info.bpm,
+            length:  map.song_info.length,
+            offset:  map.song_info.offset,
         };
 
         let mut word_entries: Vec<WordEntry> = vec![];
@@ -245,6 +295,7 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
             let original_idx = vec_push_idx(&mut plus_1s_cstring, original_c);
 
             let word_entry = WordEntry {
+                managed:     0,
                 lang:        plus_1s_cstring[lang_idx].as_ptr(),
                 title:       plus_1s_cstring[title_idx].as_ptr(),
                 sub_title:   plus_1s_cstring[sub_title_idx].as_ptr(),
@@ -262,8 +313,9 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
 
         let wrapper = unsafe {
             ArrayWrapper {
-                size:  plus_1s_vec[word_entries_idx].len() as u32,
-                array: mem::transmute(plus_1s_vec[word_entries_idx].as_ptr()),
+                managed: 0,
+                size:    plus_1s_vec[word_entries_idx].len() as u32,
+                array:   mem::transmute(plus_1s_vec[word_entries_idx].as_ptr()),
             }
         };
 
@@ -271,9 +323,10 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
         let song_id_idx = vec_push_idx(&mut plus_1s_cstring, song_id_c);
 
         let song_entry = SongEntry {
+            managed: 0,
             id: plus_1s_cstring[song_id_idx].as_ptr(),
             music_entry,
-            word_entry: wrapper,
+            word_entries: wrapper,
         };
 
         song_entries.push(song_entry);
@@ -281,8 +334,9 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
 
     unsafe {
         let wrapper = ArrayWrapper {
-            size:  song_entries.len() as u32,
-            array: mem::transmute(song_entries.as_ptr()),
+            managed: 0,
+            size:    song_entries.len() as u32,
+            array:   mem::transmute(song_entries.as_ptr()),
         };
         patch_share_data_music_data(share_data_c.as_ptr(), out_path_c.as_ptr(), wrapper);
     }

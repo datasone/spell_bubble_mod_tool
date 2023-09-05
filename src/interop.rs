@@ -1,27 +1,55 @@
 use std::{
     ffi::{c_void, CString},
-    os::raw::{c_char, c_int},
+    os::raw::c_char,
     path::PathBuf,
 };
 
 #[repr(C)]
 pub struct ArrayWrapper {
-    pub size:  u32,
-    pub array: *mut c_void,
+    /// 0 for structs from Rust, 1 for C#
+    pub managed: u32,
+    pub size:    u32,
+    pub array:   *mut c_void,
+}
+
+impl Drop for ArrayWrapper {
+    fn drop(&mut self) {
+        if self.managed == 1 {
+            unsafe {
+                free_dotnet(self.array);
+            }
+        }
+    }
+}
+
+#[repr(C)]
+pub struct DualArrayWrapper {
+    pub size:   u32,
+    pub array:  *mut c_void,
+    pub size2:  u32,
+    pub array2: *mut c_void,
+}
+
+impl Drop for DualArrayWrapper {
+    fn drop(&mut self) {
+        unsafe {
+            free_dotnet(self.array);
+            free_dotnet(self.array2);
+        }
+    }
+}
+
+pub struct StringWrapper(pub *const c_char);
+
+impl Drop for StringWrapper {
+    fn drop(&mut self) {
+        unsafe { free_dotnet(self.0 as *mut c_void) }
+    }
 }
 
 extern "C" {
     pub fn initialize(class_package_path: *const c_char);
-    pub fn patch_features(
-        share_data_path: *const c_char,
-        out_path: *const c_char,
-        patch_music: c_int, // C style bool, 0 for false, others for true
-        excluded_dlcs: ArrayWrapper,
-        left_music_id: *const c_char, // Unused for now
-        patch_characters: c_int,      // C style bool, 0 for false, others for true
-        character_target_dlc: c_int,  // Unused for now
-        patch_special_rules: c_int,   // C style bool, 0 for false, others for true
-    );
+    pub fn free_dotnet(pointer: *mut c_void);
 }
 
 pub fn initialize_assets(class_package_path: PathBuf) {

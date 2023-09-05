@@ -4,6 +4,7 @@ mod interop;
 use std::{collections::HashMap, iter::zip, path::Path, str::FromStr};
 
 use enums::{Area, Music};
+pub use interop::get_song_info;
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{serde_as, DisplayFromStr};
