@@ -45,6 +45,8 @@ struct MusicEntry {
     area:    *const c_char,
     bpm:     f32,
     length:  u16,
+    /// Ignored when patching files
+    dlc_idx: u16,
     offset:  f32,
 }
 
@@ -271,6 +273,7 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
             area:    plus_1s_cstring[area_idx].as_ptr(),
             bpm:     map.song_info.bpm,
             length:  map.song_info.length,
+            dlc_idx: 0,
             offset:  map.song_info.offset,
         };
 
@@ -390,6 +393,8 @@ pub fn get_song_info(romfs_path: &Path) -> Vec<(Map, String, String, String)> {
             let bpm = song_entry.music_entry.bpm;
             let offset = song_entry.music_entry.offset;
             let length = song_entry.music_entry.length;
+            let dlc_index = song_entry.music_entry.dlc_idx;
+
             let area = CStr::from_ptr(song_entry.music_entry.area)
                 .to_str()
                 .unwrap();
@@ -465,6 +470,7 @@ pub fn get_song_info(romfs_path: &Path) -> Vec<(Map, String, String, String)> {
                     bpm,
                     offset,
                     length,
+                    dlc_index,
                     area,
                     info_text,
                     prev_start_ms: 0,

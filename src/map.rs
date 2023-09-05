@@ -265,6 +265,8 @@ pub struct SongInfo {
     pub bpm_changes:   Option<BpmChanges>,
     #[serde(skip)]
     beats_layout:      Option<BeatsLayout>,
+    #[serde(skip)]
+    pub dlc_index:         u16,
 }
 
 impl SongInfo {
@@ -725,6 +727,7 @@ mod test {
                 bpm:           150.0,
                 offset:        0.01,
                 length:        1500,
+                dlc_index:     0,
                 area:          Area::Arena,
                 info_text:     hashmap! {
                     Lang::JA => SongInfoText {
@@ -755,6 +758,7 @@ mod test {
                 bpm:           152.0,
                 offset:        0.02,
                 length:        1502,
+                dlc_index:     0,
                 area:          Area::ArenaNight,
                 info_text:     hashmap! {
                     Lang::JA => SongInfoText {

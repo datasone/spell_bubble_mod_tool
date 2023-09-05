@@ -12,11 +12,12 @@ use std::{
     path::{Path, PathBuf},
     process::exit,
 };
+use std::ffi::CStr;
 
 use clap::{Parser, Subcommand};
 use itertools::Itertools;
 
-use crate::interop::{initialize_assets, ArrayWrapper};
+use crate::interop::{initialize_assets, ArrayWrapper, StringWrapper};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -117,6 +118,10 @@ extern "C" {
         character_target_dlc: c_int,  // Unused for now
         patch_special_rules: c_int,   // C style bool, 0 for false, others for true
     );
+
+    pub fn get_dlc_list(
+        share_data_path: *const c_char,
+    ) -> ArrayWrapper;
 }
 
 fn main() -> anyhow::Result<()> {
@@ -264,6 +269,20 @@ fn main() -> anyhow::Result<()> {
             romfs_root,
             out_csv,
         } => {
+            let mut share_data = romfs_root.clone();
+            share_data.push("StreamingAssets/Switch/share_data");
+            let share_data_path = CString::new(share_data.to_string_lossy().as_ref()).unwrap();
+
+            let dlcs = unsafe {
+                let arr = get_dlc_list(share_data_path.as_ptr());
+                let arr = std::slice::from_raw_parts(arr.array as *const *const c_char, arr.size as usize);
+                arr.iter().map(|&p| StringWrapper(p)).collect::<Vec<_>>()
+            };
+
+            let dlcs = unsafe {
+                dlcs.iter().map(|sw| CStr::from_ptr(sw.0).to_str().unwrap()).collect::<Vec<_>>()
+            };
+
             let maps = map::get_song_info(romfs_root);
 
             let mut writer = BufWriter::new(File::create(out_csv).unwrap());
@@ -284,6 +303,7 @@ fn main() -> anyhow::Result<()> {
                     "Levels - Hard",
                     "Length",
                     "Area",
+                    "DLC",
                 ])
                 .unwrap();
 
@@ -303,6 +323,11 @@ fn main() -> anyhow::Result<()> {
                         m.level(map::Difficulty::Hard, Some(h)).to_string(),
                         song_info.length.to_string(),
                         song_info.area.to_string(),
+                        if song_info.dlc_index == 0 {
+                            "本体"
+                        } else {
+                            dlcs[song_info.dlc_index as usize - 1]
+                        }.to_string(),
                     ])
                 })
                 .collect::<Result<Vec<_>, _>>()
