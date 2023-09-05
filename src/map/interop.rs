@@ -109,6 +109,7 @@ extern "C" {
         out_file: *const c_char,
         params: ArrayWrapper,
     );
+    fn get_music_info(romfs_path: *const c_char) -> DualArrayWrapper;
 }
 
 pub(super) fn patch_acb_file(
@@ -345,4 +346,135 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
 fn vec_push_idx<T>(vec: &mut Vec<T>, element: T) -> usize {
     vec.push(element);
     vec.len() - 1
+}
+
+pub fn get_song_info(romfs_path: &Path) -> Vec<(Map, String, String, String)> {
+    let romfs_path_c = CString::new(romfs_path.to_string_lossy().to_string()).unwrap();
+
+    let result = unsafe { get_music_info(romfs_path_c.as_ptr()) };
+
+    let (song_entries, _score_data_outer, score_data) = unsafe {
+        let song_entries =
+            std::slice::from_raw_parts(result.array as *const SongEntry, result.size as usize);
+        let score_data_outer =
+            std::slice::from_raw_parts(result.array2 as *const ArrayWrapper, result.size2 as usize);
+        let score_data = score_data_outer
+            .iter()
+            .map(|a| {
+                let slice =
+                    std::slice::from_raw_parts(a.array as *const *const c_char, a.size as usize);
+                slice.iter().map(|&p| StringWrapper(p)).collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        (song_entries, score_data_outer, score_data)
+    };
+
+    let word_entries_list = unsafe {
+        song_entries
+            .iter()
+            .map(|se| {
+                std::slice::from_raw_parts(
+                    se.word_entries.array as *const WordEntry,
+                    se.word_entries.size as usize,
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+
+    izip!(song_entries, word_entries_list, score_data)
+        .map(|(song_entry, word_entries, score_data)| unsafe {
+            let id = CStr::from_ptr(song_entry.id).to_str().unwrap();
+            let id = Music::from_str(id).unwrap();
+
+            let bpm = song_entry.music_entry.bpm;
+            let offset = song_entry.music_entry.offset;
+            let length = song_entry.music_entry.length;
+            let area = CStr::from_ptr(song_entry.music_entry.area)
+                .to_str()
+                .unwrap();
+            let area = Area::from_str(area).unwrap();
+
+            let info_text = word_entries
+                .iter()
+                .map(|word_entry| {
+                    let lang = CStr::from_ptr(word_entry.lang).to_str().unwrap();
+                    let lang = Lang::from_str(lang).unwrap();
+
+                    let title = CStr::from_ptr(word_entry.title)
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    let title_kana = CStr::from_ptr(word_entry.title_kana)
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    let sub_title = CStr::from_ptr(word_entry.sub_title)
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    let artist = CStr::from_ptr(word_entry.artist)
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    let artist2 = CStr::from_ptr(word_entry.artist2)
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    let artist_kana = CStr::from_ptr(word_entry.artist_kana)
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    let original = CStr::from_ptr(word_entry.original)
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+
+                    let info = SongInfoText {
+                        title,
+                        title_kana,
+                        sub_title,
+                        artist,
+                        artist2,
+                        artist_kana,
+                        original,
+                    };
+
+                    (lang, info)
+                })
+                .collect::<HashMap<_, _>>();
+
+            let beat = CStr::from_ptr(score_data[0].0).to_str().unwrap().to_owned();
+
+            let bpm_changes = BpmChanges::from_script(&beat);
+            let beats_layout = BeatsLayout::from_script(&beat);
+
+            let mut map_scores = HashMap::new();
+            let score_easy = CStr::from_ptr(score_data[1].0).to_str().unwrap().to_owned();
+            let score_normal = CStr::from_ptr(score_data[2].0).to_str().unwrap().to_owned();
+            let score_hard = CStr::from_ptr(score_data[3].0).to_str().unwrap().to_owned();
+
+            map_scores.insert(Difficulty::Easy, MapScore::from_score(&score_easy));
+            map_scores.insert(Difficulty::Normal, MapScore::from_score(&score_normal));
+            map_scores.insert(Difficulty::Hard, MapScore::from_score(&score_hard));
+
+            let map = Map {
+                song_info: SongInfo {
+                    id,
+                    music_file: "".to_string(),
+                    bpm,
+                    offset,
+                    length,
+                    area,
+                    info_text,
+                    prev_start_ms: 0,
+                    bpm_changes,
+                    beats_layout,
+                },
+                map_scores,
+            };
+
+            (map, score_easy, score_normal, score_hard)
+        })
+        .collect::<Vec<_>>()
 }

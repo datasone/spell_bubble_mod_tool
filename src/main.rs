@@ -86,6 +86,14 @@ enum Commands {
         #[clap(long, short)]
         list:       bool,
     },
+    /// Extract song information
+    ExtractSongInfo {
+        /// The path to dumped game RomFS files
+        romfs_root: PathBuf,
+
+        /// Output csv file
+        out_csv: PathBuf,
+    },
 }
 
 fn create_out_dir_structure(out_base: &Path) -> anyhow::Result<PathBuf> {
@@ -251,6 +259,54 @@ fn main() -> anyhow::Result<()> {
             }
 
             fs::write(map, toml::to_string_pretty(&maps_config)?)?;
+        }
+        Commands::ExtractSongInfo {
+            romfs_root,
+            out_csv,
+        } => {
+            let maps = map::get_song_info(romfs_root);
+
+            let mut writer = BufWriter::new(File::create(out_csv).unwrap());
+            // Write BOM for Windows programs to recognize encoding
+            writer.write_all(&[0xEF, 0xBB, 0xBF]).unwrap();
+            let mut writer = csv::Writer::from_writer(writer);
+
+            writer
+                .write_record([
+                    "ID",
+                    "Title",
+                    "Artist",
+                    "Original",
+                    "Effective BPM",
+                    "Has Tempo Changes",
+                    "Levels - Easy",
+                    "Levels - Normal",
+                    "Levels - Hard",
+                    "Length",
+                    "Area",
+                ])
+                .unwrap();
+
+            maps.iter()
+                .map(|(m, e, n, h)| {
+                    let song_info = &m.song_info;
+                    let info_text = song_info.info_text.get(&map::Lang::JA).unwrap();
+                    writer.write_record(&[
+                        song_info.id.to_string(),
+                        info_text.title(),
+                        info_text.artist(),
+                        info_text.original(),
+                        m.effective_bpm().to_string(),
+                        song_info.is_bpm_change().to_string(),
+                        m.level(map::Difficulty::Easy, Some(e)).to_string(),
+                        m.level(map::Difficulty::Normal, Some(n)).to_string(),
+                        m.level(map::Difficulty::Hard, Some(h)).to_string(),
+                        song_info.length.to_string(),
+                        song_info.area.to_string(),
+                    ])
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
         }
     }
 

@@ -60,10 +60,24 @@ impl SongInfoText {
         }
     }
 
-    // This function is used in unit tests in external_map/adofai
-    #[allow(dead_code)]
     pub fn title(&self) -> String {
-        self.title.clone()
+        if self.sub_title.is_empty() {
+            self.title.clone()
+        } else {
+            format!("{} {}", self.title, self.sub_title)
+        }
+    }
+
+    pub fn artist(&self) -> String {
+        if self.artist2.is_empty() {
+            self.artist.clone()
+        } else {
+            format!("{} {}", self.artist, self.artist2)
+        }
+    }
+
+    pub fn original(&self) -> String {
+        self.original.clone()
     }
 }
 
@@ -81,7 +95,7 @@ impl BpmChanges {
             .map(|(i, len)| format!("{i}:{len},"))
             .join("\n");
 
-        let entry_pos = self.entry_pos();
+        let entry_pos = self.entry_pos(&None);
 
         let bpm_changes = self
             .0
@@ -112,6 +126,10 @@ impl BpmChanges {
             }
         }
 
+        if beats.is_empty() {
+            return BeatsLayout::default();
+        }
+
         let mut duplicate_keys = vec![];
 
         let mut beats_iter = beats.iter().sorted_by_key(|(i, _)| *i);
@@ -131,8 +149,11 @@ impl BpmChanges {
     }
 
     /// Returns (LineIdx, LinePos)
-    fn entry_pos(&self) -> Vec<(u16, u16)> {
-        let beats_layout = self.beats_layout();
+    fn entry_pos(&self, beats_layout: &Option<BeatsLayout>) -> Vec<(u16, u16)> {
+        let beats_layout = match beats_layout {
+            Some(bl) => bl.clone(),
+            None => self.beats_layout(),
+        };
 
         self.0
             .iter()
@@ -156,11 +177,78 @@ impl BpmChanges {
             })
             .collect()
     }
+
+    fn from_script(script: impl AsRef<str>) -> Option<Self> {
+        let beats_layout = BeatsLayout::from_script(script.as_ref()).unwrap_or_default();
+
+        let bpm_changes = script
+            .as_ref()
+            .trim()
+            .lines()
+            .filter(|l| l.starts_with('['))
+            .map(|s| {
+                let s = s
+                    .strip_prefix("[BPM]")
+                    .and_then(|s| s.strip_suffix(','))
+                    .unwrap();
+                let mut split = s.split(':');
+                let line = split.next().and_then(|s| s.parse::<u16>().ok()).unwrap();
+                let bpm = split.next().and_then(|s| s.parse::<f32>().ok()).unwrap();
+
+                let mut idx = 0;
+                let mut cur_line = 1;
+                let mut cur_line_len = 4;
+                while cur_line < line {
+                    idx += cur_line_len;
+
+                    if let Some(&new_len) = beats_layout.0.get(&(cur_line + 1)) {
+                        cur_line_len = new_len;
+                    }
+
+                    cur_line += 1;
+                }
+
+                (idx, bpm)
+            })
+            .sorted_by_key(|(i, _)| *i)
+            .collect::<Vec<_>>();
+
+        if bpm_changes.is_empty() {
+            None
+        } else {
+            Some(Self(bpm_changes))
+        }
+    }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 /// (u16, u16) is LineIdx, LineLength pair
 struct BeatsLayout(HashMap<u16, u16>);
+
+impl BeatsLayout {
+    fn from_script(script: impl AsRef<str>) -> Option<Self> {
+        let layout = script
+            .as_ref()
+            .trim()
+            .lines()
+            .filter(|l| !l.is_empty() && !l.starts_with('['))
+            .map(|s| {
+                let s = s.strip_suffix(',').unwrap();
+                let mut split = s.split(':');
+                (
+                    split.next().and_then(|s| s.parse::<u16>().ok()).unwrap(),
+                    split.next().and_then(|s| s.parse::<u16>().ok()).unwrap(),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        if layout.is_empty() {
+            None
+        } else {
+            Some(Self(layout))
+        }
+    }
+}
 
 #[serde_as]
 #[derive(Default, Serialize, Deserialize)]
@@ -175,6 +263,8 @@ pub struct SongInfo {
     pub info_text:     HashMap<Lang, SongInfoText>,
     pub prev_start_ms: u32,
     pub bpm_changes:   Option<BpmChanges>,
+    #[serde(skip)]
+    beats_layout:      Option<BeatsLayout>,
 }
 
 impl SongInfo {
@@ -190,7 +280,7 @@ impl SongInfo {
         }
     }
 
-    fn is_bpm_change(&self) -> bool {
+    pub fn is_bpm_change(&self) -> bool {
         self.bpm_changes.is_some()
     }
 }
@@ -341,6 +431,25 @@ impl MapScore {
 
     fn validate(&self) -> Result<(), InvalidMapError> {
         self.scores.validate()
+    }
+
+    fn from_score(score: impl AsRef<str>) -> Self {
+        let score = score.as_ref().trim().lines().join("");
+        let score_data = score
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| match s.chars().next().unwrap() {
+                '-' => ScoreEntry::B,
+                'O' => ScoreEntry::O,
+                'S' => ScoreEntry::S,
+                _ => unreachable!(),
+            })
+            .collect::<Vec<_>>();
+
+        Self {
+            scores: ScoreData(score_data),
+        }
     }
 }
 
@@ -629,6 +738,7 @@ mod test {
                     }
                 },
                 bpm_changes:   None,
+                beats_layout:  None,
                 prev_start_ms: 0,
             },
             map_scores: hashmap! {
@@ -658,6 +768,7 @@ mod test {
                     }
                 },
                 bpm_changes:   BpmChanges(vec![(100, 150.), (150, 50.)]).into(),
+                beats_layout:  None,
                 prev_start_ms: 0,
             },
             map_scores: hashmap! {
