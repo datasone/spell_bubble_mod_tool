@@ -31,7 +31,7 @@ struct MapAction {
     #[serde(alias = "speedType")]
     speed_type: Option<String>,
     #[serde(alias = "beatsPerMinute")]
-    bpm:        Option<u16>,
+    bpm:        Option<f32>,
     #[serde(alias = "bpmMultiplier")]
     multiplier: Option<f32>,
 }
@@ -47,7 +47,7 @@ enum ActionType {
 }
 
 enum BpmChangeType {
-    Exact(u16),
+    Exact(f32),
     Multiplier(f32),
 }
 
@@ -125,12 +125,12 @@ impl ADoFaIMap {
         scores
     }
 
-    pub fn bpm_changes(&mut self) -> Vec<(u16, u16)> {
+    pub fn bpm_changes(&mut self) -> Vec<(u16, f32)> {
         if self.parsed_actions.is_none() {
             self.parse_actions()
         }
 
-        let mut tracked_bpm = self.settings.bpm as u16;
+        let mut tracked_bpm = self.settings.bpm;
 
         self.parsed_actions
             .as_ref()
@@ -142,7 +142,7 @@ impl ADoFaIMap {
                     Some((action.id - 1, tracked_bpm))
                 }
                 ActionType::BpmChange(BpmChangeType::Multiplier(mul)) => {
-                    tracked_bpm = (tracked_bpm as f32 * mul) as u16;
+                    tracked_bpm *= mul;
                     Some((action.id - 1, tracked_bpm))
                 }
                 _ => None,

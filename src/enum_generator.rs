@@ -70,7 +70,7 @@ fn main() {
 
     builder.push_str(
         "\n\n#[derive(strum::Display, strum::EnumString, serde::Serialize, serde::Deserialize, \
-         Default, Clone, Copy)]\npub enum Music {\n",
+         PartialEq, Default, Clone, Copy)]\npub enum Music {\n",
     );
     music_array.iter().for_each(|&s| {
         if s == "Alice" {

@@ -28,6 +28,7 @@ pub enum InvalidMapError {
 #[derive(
     Eq, PartialEq, Hash, Clone, strum::Display, strum::EnumString, Serialize, Deserialize, Default,
 )]
+#[strum(ascii_case_insensitive)]
 pub enum Lang {
     #[default]
     JA,
@@ -67,8 +68,8 @@ impl SongInfoText {
 }
 
 /// (u16, u16) is Index, TargetBpm pair
-#[derive(Default, Serialize, Deserialize)]
-pub struct BpmChanges(pub Vec<(u16, u16)>);
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct BpmChanges(pub Vec<(u16, f32)>);
 
 impl BpmChanges {
     fn to_script(&self) -> String {
@@ -86,7 +87,7 @@ impl BpmChanges {
             .0
             .iter()
             .enumerate()
-            .map(|(i, (_, bpm))| format!("[BPM]{}:{bpm},", entry_pos[i].0))
+            .map(|(i, (_, bpm))| format!("[BPM]{}:{bpm:.1},", entry_pos[i].0))
             .join("\n");
 
         format!("{}\n{}\n", beats, bpm_changes)
@@ -491,11 +492,11 @@ impl Map {
                     let (left_id, left_bpm) = w[0];
                     let (right_id, _) = w[1];
 
-                    duration_sum += (right_id - left_id) as f32 / left_bpm as f32 * 60.0;
+                    duration_sum += (right_id - left_id) as f32 / left_bpm * 60.0;
                 });
 
                 let (last_id, last_bpm) = bpm_changes.0.last().unwrap();
-                duration_sum += (score_len as u16 - *last_id - 1) as f32 / *last_bpm as f32 * 60.0;
+                duration_sum += (score_len as u16 - *last_id - 1) as f32 / *last_bpm * 60.0;
 
                 duration_sum
             }
@@ -565,7 +566,7 @@ mod test {
                         original: "Original2".to_string(),
                     }
                 },
-                bpm_changes:   BpmChanges(vec![(100, 150), (150, 50)]).into(),
+                bpm_changes:   BpmChanges(vec![(100, 150.), (150, 50.)]).into(),
                 prev_start_ms: 0,
             },
             map_scores: hashmap! {
@@ -585,36 +586,36 @@ mod test {
     #[test]
     fn test_beats_layout() {
         let bpm_changes = BpmChanges(vec![
-            (118 * 4, 200),
-            (130 * 4, 400),
-            (206 * 4, 200),
-            (207 * 4, 400),
-            (209 * 4, 200),
-            (210 * 4, 400),
-            (212 * 4, 200),
-            (213 * 4, 400),
-            (215 * 4, 200),
-            (216 * 4, 400),
-            (236 * 4, 200),
-            (240 * 4, 400),
-            (346 * 4, 200),
-            (347 * 4, 400),
-            (403 * 4, 200),
-            (407 * 4, 400),
-            (415 * 4, 50),
-            (415 * 4 + 1, 200),
-            (424 * 4 - 3, 400),
-            (438 * 4 - 3, 200),
-            (439 * 4 - 3, 400),
-            (479 * 4 - 3, 200),
-            (483 * 4 - 3, 400),
-            (491 * 4 - 3, 200),
-            (492 * 4 - 3, 400),
-            (503 * 4 - 3, 200),
-            (503 * 4 - 1, 400),
-            (536 * 4 - 5, 100),
-            (536 * 4 - 3, 400),
-            (567 * 4 - 7, 200),
+            (118 * 4, 200.),
+            (130 * 4, 400.),
+            (206 * 4, 200.),
+            (207 * 4, 400.),
+            (209 * 4, 200.),
+            (210 * 4, 400.),
+            (212 * 4, 200.),
+            (213 * 4, 400.),
+            (215 * 4, 200.),
+            (216 * 4, 400.),
+            (236 * 4, 200.),
+            (240 * 4, 400.),
+            (346 * 4, 200.),
+            (347 * 4, 400.),
+            (403 * 4, 200.),
+            (407 * 4, 400.),
+            (415 * 4, 50.),
+            (415 * 4 + 1, 200.),
+            (424 * 4 - 3, 400.),
+            (438 * 4 - 3, 200.),
+            (439 * 4 - 3, 400.),
+            (479 * 4 - 3, 200.),
+            (483 * 4 - 3, 400.),
+            (491 * 4 - 3, 200.),
+            (492 * 4 - 3, 400.),
+            (503 * 4 - 3, 200.),
+            (503 * 4 - 1, 400.),
+            (536 * 4 - 5, 100.),
+            (536 * 4 - 3, 400.),
+            (567 * 4 - 7, 200.),
         ]);
 
         println!("{:?}", bpm_changes.beats_layout())
@@ -662,12 +663,12 @@ mod test {
 
     #[test]
     fn test_bpm_changes() {
-        let bpm_changes = BpmChanges(vec![(1428, 100), (1430, 150)]);
+        let bpm_changes = BpmChanges(vec![(1428, 100.), (1430, 150.)]);
 
         assert_eq!(
             bpm_changes.beats_layout().0,
             hashmap! { 358 => 2, 359 => 4 }
         );
-        assert_eq!(bpm_changes.entry_pos(), vec![(358, 0), (359, 0)]);
+        assert_eq!(bpm_changes.entry_pos(&None), vec![(358, 0), (359, 0)]);
     }
 }
