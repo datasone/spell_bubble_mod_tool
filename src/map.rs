@@ -503,6 +503,97 @@ impl Map {
             None => (score_len - 1) as f32 / init_bpm * 60.0,
         }
     }
+
+    pub fn levels(&self) -> (u8, u8, u8) {
+        (
+            self.level(Difficulty::Easy, None),
+            self.level(Difficulty::Normal, None),
+            self.level(Difficulty::Hard, None),
+        )
+    }
+
+    pub fn level(&self, difficulty: Difficulty, score_str: Option<&str>) -> u8 {
+        let calculated_score;
+        let score = match score_str {
+            Some(score) => score,
+            None => {
+                if let Some(score) = self.map_scores.get(&difficulty) {
+                    calculated_score = score.to_script(
+                        &self
+                            .song_info
+                            .bpm_changes
+                            .as_ref()
+                            .map(|bc| bc.beats_layout())
+                            .unwrap_or_default(),
+                    );
+                    &calculated_score
+                } else {
+                    return 0
+                }
+            }
+        };
+
+        let default_bpm_changes = BpmChanges::default();
+        let bpm_changes = &self.song_info.bpm_changes;
+        let bpm_changes_entries = bpm_changes
+            .as_ref()
+            .map(|bc| bc.entry_pos(&self.song_info.beats_layout))
+            .unwrap_or_default();
+        let mut bpm_line_changes = zip(
+            bpm_changes
+                .as_ref()
+                .unwrap_or(&default_bpm_changes)
+                .0
+                .iter(),
+            bpm_changes_entries.iter(),
+        )
+        .map(|((_, bpm), (line, _))| (*line, *bpm));
+
+        // u16::MAX is used to form an (impossible to match) change point
+        let mut next_bpm_change = bpm_line_changes.next().unwrap_or((u16::MAX, 0.));
+        let mut tracked_bpm = self.song_info.bpm;
+
+        let lines_beat_and_duration = score
+            .lines()
+            .enumerate()
+            .map(|(i, l)| {
+                let line_beats = l
+                    .split(',')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>();
+                let line_beat_counts = line_beats.iter().filter(|&&s| s != "-").count();
+
+                let line_duration = if i + 1 == next_bpm_change.0 as usize {
+                    let duration = 60.0 / tracked_bpm;
+
+                    tracked_bpm = next_bpm_change.1;
+                    next_bpm_change = bpm_line_changes.next().unwrap_or((u16::MAX, 0.));
+
+                    duration + (line_beats.len() - 1) as f32 * 60.0 / tracked_bpm
+                } else {
+                    line_beats.len() as f32 * 60.0 / tracked_bpm
+                };
+
+                (line_beat_counts, line_duration)
+            })
+            .collect::<Vec<_>>();
+
+        let densities = lines_beat_and_duration
+            .windows(8)
+            .map(|w| {
+                let (beat_counts, durations): (Vec<_>, Vec<_>) = w.iter().copied().unzip();
+                beat_counts.into_iter().sum::<usize>() as f32 / durations.into_iter().sum::<f32>()
+            })
+            .sorted_by(|a, b| a.partial_cmp(b).unwrap())
+            .collect::<Vec<_>>();
+
+        let take_len = (densities.len() - 1) / 5;
+        let take_from = densities.len() - take_len - 1;
+        let level: f32 = densities[take_from..].iter().sum();
+        let level = ((level / take_len as f32) - 1.0) * 4.2;
+        level.ceil() as u8
+    }
 }
 
 #[derive(Serialize, Deserialize)]
