@@ -605,10 +605,14 @@ impl Map {
             ));
 
             let mut score_path = game_files_dir.to_owned();
-            score_path.push(format!(
-                "StreamingAssets/Switch/share_scores/score_{}"
-                song_id.to_lowercase()
-            ));
+            if replace_existing {
+                score_path.push(format!(
+                    "StreamingAssets/Switch/share_scores/score_{}",
+                    song_id.to_lowercase()
+                ));
+            } else {
+                score_path.push("StreamingAssets/Switch/share_scores/score_karisuma");
+            }
 
             let mut out_score_path = out_base_path.to_owned();
             out_score_path.push(format!(
@@ -630,10 +634,16 @@ impl Map {
                 &song_id,
                 &map.map_scores,
                 &map.song_info.bpm_changes,
+                replace_existing,
             );
         }
 
-        patch_share_data(&share_data_path, &out_share_data_path, &maps);
+        patch_share_data(
+            &share_data_path,
+            &out_share_data_path,
+            maps,
+            replace_existing,
+        );
 
         Ok(())
     }

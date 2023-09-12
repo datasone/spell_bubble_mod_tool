@@ -106,7 +106,19 @@ extern "C" {
         song_id: *const c_char,
         params: ArrayWrapper,
     );
+    fn create_score(
+        score_path: *const c_char,
+        out_path: *const c_char,
+        song_id: *const c_char,
+        new_song_id: *const c_char,
+        params: ArrayWrapper,
+    );
     fn patch_share_data_music_data(
+        share_data_path: *const c_char,
+        out_file: *const c_char,
+        params: ArrayWrapper,
+    );
+    fn add_share_data_music_data(
         share_data_path: *const c_char,
         out_file: *const c_char,
         params: ArrayWrapper,
@@ -195,6 +207,7 @@ pub(super) fn patch_score_file(
     song_id: &str,
     scores: &HashMap<Difficulty, MapScore>,
     bpm_changes: &Option<BpmChanges>,
+    replace_existing: bool,
 ) {
     let len = scores.iter().next().unwrap().1.scores.0.len();
     let mut scores = scores.to_owned();
@@ -236,22 +249,39 @@ pub(super) fn patch_score_file(
     let out_path_c = CString::new(out_path.to_string_lossy().to_string()).unwrap();
     let song_id_c = CString::new(song_id).unwrap();
 
+    let create_score_base_id = CString::new("Karisuma").unwrap();
+
     unsafe {
         let param = ArrayWrapper {
             managed: 0,
             size:    param_ptrs.len() as u32,
             array:   mem::transmute(param_ptrs.as_ptr()),
         };
-        patch_score(
-            score_file_c.as_ptr(),
-            out_path_c.as_ptr(),
-            song_id_c.as_ptr(),
-            param,
-        );
+        if replace_existing {
+            patch_score(
+                score_file_c.as_ptr(),
+                out_path_c.as_ptr(),
+                song_id_c.as_ptr(),
+                param,
+            );
+        } else {
+            create_score(
+                score_file_c.as_ptr(),
+                out_path_c.as_ptr(),
+                create_score_base_id.as_ptr(),
+                song_id_c.as_ptr(),
+                param,
+            );
+        }
     }
 }
 
-pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[Map]) {
+pub(super) fn patch_share_data(
+    share_data_file: &Path,
+    out_path: &Path,
+    maps: &[Map],
+    replace_existing: bool,
+) {
     let share_data_c = CString::new(share_data_file.to_string_lossy().to_string()).unwrap();
     let out_path_c = CString::new(out_path.to_string_lossy().to_string()).unwrap();
 
@@ -342,7 +372,12 @@ pub(super) fn patch_share_data(share_data_file: &Path, out_path: &Path, maps: &[
             size:    song_entries.len() as u32,
             array:   mem::transmute(song_entries.as_ptr()),
         };
-        patch_share_data_music_data(share_data_c.as_ptr(), out_path_c.as_ptr(), wrapper);
+
+        if replace_existing {
+            patch_share_data_music_data(share_data_c.as_ptr(), out_path_c.as_ptr(), wrapper);
+        } else {
+            add_share_data_music_data(share_data_c.as_ptr(), out_path_c.as_ptr(), wrapper);
+        }
     }
 }
 

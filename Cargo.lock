@@ -560,6 +560,7 @@ dependencies = [
  "build-target",
  "clap",
  "csv",
+ "hex",
  "itertools",
  "maplit",
  "memmem",

@@ -1,3 +1,4 @@
+mod exefs;
 mod external_map;
 mod ffmpeg_helper;
 mod interop;
@@ -31,40 +32,40 @@ enum Commands {
     /// Unlocks some hidden or DLC-related game features
     UnlockFeatures {
         /// The path to extracted share_data file
-        share_data: PathBuf,
-
+        share_data:    PathBuf,
         /// Output path of generated content
-        outdir: PathBuf,
-
+        outdir:        PathBuf,
         /// Unlock special challenge rules for PvE games
         #[clap(short, long)]
         special_rules: bool,
-
         /// Unlock all musics (including DLC musics and musics in shop, one
         /// music: "Lostword" is kept unlocked to keep the shop functioning
         /// normally)
         #[clap(short, long)]
-        musics: bool,
-
+        musics:        bool,
         /// Unlock DLC characters (one DLC must be present, the program sets it
         /// to the first one)
         #[clap(short, long)]
-        characters: bool,
-
+        characters:    bool,
         /// Exclude DLC IDs from being unlocked
         #[clap(short, long)]
-        exclude: Vec<u16>,
+        exclude:       Vec<u16>,
     },
     /// Patch game files given map config toml
     PatchMap {
         /// The path to dumped game RomFS files
-        romfs_root: PathBuf,
-
+        romfs_root:    PathBuf,
         /// Map config toml file
-        maps: PathBuf,
-
+        maps:          PathBuf,
         /// Output path of generated content
-        outdir: PathBuf,
+        outdir:        PathBuf,
+        #[clap(long)]
+        /// Only patch romfs to replace existing song with provided ones,
+        /// only existing IDs are usable in this mode
+        romfs_only:    bool,
+        #[clap(required_unless_present("romfs_only"))]
+        /// The path to the "main" file in the ExeFS, used to extract build ID
+        main_exe_path: Option<PathBuf>,
     },
     /// Convert map information (length, bpm, offset, scores) from adofai to
     /// toml files
@@ -169,6 +170,8 @@ fn main() -> anyhow::Result<()> {
             romfs_root,
             maps,
             outdir,
+            romfs_only,
+            main_exe_path,
         } => {
             let maps: map::MapsConfig = {
                 let content = fs::read_to_string(maps)?;
@@ -176,10 +179,20 @@ fn main() -> anyhow::Result<()> {
             };
 
             for map in maps.maps.iter() {
-                map.validate()?
+                map.validate(*romfs_only)?
             }
 
-            map::Map::patch_files(romfs_root, outdir, maps.maps)?;
+            map::Map::patch_files(romfs_root, outdir, &maps.maps, *romfs_only)?;
+
+            if !*romfs_only {
+                let names = maps
+                    .maps
+                    .iter()
+                    .map(|m| m.song_info.id.to_string())
+                    .collect::<Vec<_>>();
+
+                exefs::patch_files(romfs_root, main_exe_path.as_ref().unwrap(), outdir, &names);
+            }
         }
         Commands::ConvertAdofai {
             adofai,
