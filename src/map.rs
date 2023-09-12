@@ -1,15 +1,20 @@
 mod enums;
 mod interop;
 
-use std::{collections::HashMap, iter::zip, path::Path, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display, Formatter},
+    iter::zip,
+    path::Path,
+    str::FromStr,
+};
 
 use enums::{Area, Music};
 pub use interop::get_song_info;
+use interop::{patch_acb_file, patch_score_file, patch_share_data};
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{serde_as, DisplayFromStr};
-
-use crate::map::interop::{patch_acb_file, patch_score_file, patch_share_data};
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidMapError {
@@ -266,7 +271,7 @@ pub struct SongInfo {
     #[serde(skip)]
     beats_layout:      Option<BeatsLayout>,
     #[serde(skip)]
-    pub dlc_index:         u16,
+    pub dlc_index:     u16,
 }
 
 impl SongInfo {
@@ -629,7 +634,7 @@ impl Map {
                     );
                     &calculated_score
                 } else {
-                    return 0
+                    return 0;
                 }
             }
         };

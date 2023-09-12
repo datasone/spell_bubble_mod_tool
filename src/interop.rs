@@ -5,6 +5,7 @@ use std::{
 };
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct ArrayWrapper {
     /// 0 for structs from Rust, 1 for C#
     pub managed: u32,

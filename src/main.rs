@@ -4,7 +4,7 @@ mod interop;
 mod map;
 
 use std::{
-    ffi::{c_char, c_int, CString},
+    ffi::{c_char, c_int, CStr, CString},
     fs,
     fs::File,
     io::{BufWriter, Write},
@@ -12,12 +12,10 @@ use std::{
     path::{Path, PathBuf},
     process::exit,
 };
-use std::ffi::CStr;
 
 use clap::{Parser, Subcommand};
+use interop::{initialize_assets, ArrayWrapper, StringWrapper};
 use itertools::Itertools;
-
-use crate::interop::{initialize_assets, ArrayWrapper, StringWrapper};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -91,9 +89,8 @@ enum Commands {
     ExtractSongInfo {
         /// The path to dumped game RomFS files
         romfs_root: PathBuf,
-
         /// Output csv file
-        out_csv: PathBuf,
+        out_csv:    PathBuf,
     },
 }
 
@@ -119,9 +116,7 @@ extern "C" {
         patch_special_rules: c_int,   // C style bool, 0 for false, others for true
     );
 
-    pub fn get_dlc_list(
-        share_data_path: *const c_char,
-    ) -> ArrayWrapper;
+    pub fn get_dlc_list(share_data_path: *const c_char) -> ArrayWrapper;
 }
 
 fn main() -> anyhow::Result<()> {
@@ -275,12 +270,17 @@ fn main() -> anyhow::Result<()> {
 
             let dlcs = unsafe {
                 let arr = get_dlc_list(share_data_path.as_ptr());
-                let arr = std::slice::from_raw_parts(arr.array as *const *const c_char, arr.size as usize);
+                let arr = std::slice::from_raw_parts(
+                    arr.array as *const *const c_char,
+                    arr.size as usize,
+                );
                 arr.iter().map(|&p| StringWrapper(p)).collect::<Vec<_>>()
             };
 
             let dlcs = unsafe {
-                dlcs.iter().map(|sw| CStr::from_ptr(sw.0).to_str().unwrap()).collect::<Vec<_>>()
+                dlcs.iter()
+                    .map(|sw| CStr::from_ptr(sw.0).to_str().unwrap())
+                    .collect::<Vec<_>>()
             };
 
             let maps = map::get_song_info(romfs_root);
@@ -327,7 +327,8 @@ fn main() -> anyhow::Result<()> {
                             "本体"
                         } else {
                             dlcs[song_info.dlc_index as usize - 1]
-                        }.to_string(),
+                        }
+                        .to_string(),
                     ])
                 })
                 .collect::<Result<Vec<_>, _>>()

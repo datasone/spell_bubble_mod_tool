@@ -6,8 +6,7 @@ use std::{
 };
 
 use clap::Parser;
-
-use crate::interop::{initialize_assets, DualArrayWrapper, StringWrapper};
+use interop::{initialize_assets, DualArrayWrapper, StringWrapper};
 
 extern "C" {
     pub fn get_area_music_list(share_data_path: *const c_char) -> DualArrayWrapper;
