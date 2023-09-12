@@ -465,7 +465,7 @@ pub fn get_song_info(romfs_path: &Path) -> Vec<(Map, String, String, String)> {
 
             let map = Map {
                 song_info: SongInfo {
-                    id,
+                    id: super::MusicID::Existing(id),
                     music_file: "".to_string(),
                     bpm,
                     offset,

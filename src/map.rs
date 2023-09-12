@@ -28,6 +28,10 @@ pub enum InvalidMapError {
     EmptyScores,
     #[error("Too long segments detected in map scores (Max 9), details (index, length): {0:?}")]
     TooLongSegments(Vec<(usize, usize)>),
+    #[error("In non-exeFS mode, IDs must be existing ones (replacing existing maps): {0}")]
+    InvalidIDNotExists(MusicID),
+    #[error("In exeFS mode, IDs must be non-existing ones (to prevent overwrite): {0}")]
+    InvalidIDExists(MusicID),
 }
 
 #[derive(
@@ -255,10 +259,67 @@ impl BeatsLayout {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(into = "String", from = "String")]
+pub enum MusicID {
+    Existing(Music),
+    New(String),
+}
+
+impl Default for MusicID {
+    fn default() -> Self {
+        Self::Existing(Music::default())
+    }
+}
+
+impl Debug for MusicID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl Display for MusicID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from(self))
+    }
+}
+
+impl From<&MusicID> for String {
+    fn from(value: &MusicID) -> Self {
+        match value {
+            MusicID::Existing(id) => id.to_string(),
+            MusicID::New(id) => id.to_owned(),
+        }
+    }
+}
+
+impl From<MusicID> for String {
+    fn from(value: MusicID) -> Self {
+        (&value).into()
+    }
+}
+
+impl From<&str> for MusicID {
+    fn from(value: &str) -> Self {
+        let enum_val = Music::try_from(value);
+
+        match enum_val {
+            Ok(val) => Self::Existing(val),
+            Err(_) => Self::New(value.to_owned()),
+        }
+    }
+}
+
+impl From<String> for MusicID {
+    fn from(value: String) -> Self {
+        (&*value).into()
+    }
+}
+
 #[serde_as]
 #[derive(Default, Serialize, Deserialize)]
 pub struct SongInfo {
-    pub id:            Music,
+    pub id:            MusicID,
     pub music_file:    String,
     pub bpm:           f32,
     pub offset:        f32,
@@ -469,7 +530,7 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn validate(&self) -> Result<(), InvalidMapError> {
+    pub fn validate(&self, replace_existing: bool) -> Result<(), InvalidMapError> {
         self.song_info.validate()?;
 
         if self.map_scores.is_empty() {
@@ -480,13 +541,22 @@ impl Map {
             score.validate()?
         }
 
+        let id_is_existing = matches!(self.song_info.id, MusicID::Existing { .. });
+        if id_is_existing ^ replace_existing {
+            Err(match replace_existing {
+                true => InvalidMapError::InvalidIDNotExists(self.song_info.id.clone()),
+                false => InvalidMapError::InvalidIDExists(self.song_info.id.clone()),
+            })?
+        }
+
         Ok(())
     }
 
     pub fn patch_files(
         game_files_dir: &Path,
         out_dir: &Path,
-        maps: Vec<Map>,
+        maps: &Vec<Map>,
+        replace_existing: bool,
     ) -> std::io::Result<()> {
         let mut share_data_path = game_files_dir.to_owned();
         share_data_path.push("StreamingAssets/Switch/share_data");
@@ -508,7 +578,7 @@ impl Map {
             .map(std::fs::create_dir_all)
             .collect::<Result<Vec<_>, _>>()?;
 
-        for map in &maps {
+        for map in maps {
             let song_id = map.song_info.id.to_string();
 
             let mut acb_path = game_files_dir.to_owned();
@@ -717,7 +787,7 @@ mod test {
     fn generate_example_toml() {
         let map1 = Map {
             song_info:  SongInfo {
-                id:            Music::Agepoyo,
+                id:            MusicID::Existing(Music::Agepoyo),
                 music_file:    "file_path".to_string(),
                 bpm:           150.0,
                 offset:        0.01,
@@ -748,7 +818,7 @@ mod test {
 
         let map2 = Map {
             song_info:  SongInfo {
-                id:            Music::Alice,
+                id:            MusicID::New("Newly".to_string()),
                 music_file:    "file_path2".to_string(),
                 bpm:           152.0,
                 offset:        0.02,
