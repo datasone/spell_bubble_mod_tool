@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "spell_bubble_mod_tool"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "build-target",
