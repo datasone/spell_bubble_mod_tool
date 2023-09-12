@@ -492,16 +492,13 @@ impl Map {
         let mut out_share_data_path = out_base_path.to_owned();
         out_share_data_path.push("StreamingAssets/Switch/share_data");
 
-        let mut scores_dir = out_base_path.clone();
-        scores_dir.push("StreamingAssets/Switch/scores");
-
         let mut share_scores_dir = out_base_path.clone();
         share_scores_dir.push("StreamingAssets/Switch/share_scores");
 
         let mut sounds_dir = out_base_path.clone();
         sounds_dir.push("StreamingAssets/Sounds");
 
-        [&scores_dir, &share_scores_dir, &sounds_dir]
+        [&share_scores_dir, &sounds_dir]
             .iter()
             .map(std::fs::create_dir_all)
             .collect::<Result<Vec<_>, _>>()?;
@@ -534,13 +531,13 @@ impl Map {
 
             let mut score_path = game_files_dir.to_owned();
             score_path.push(format!(
-                "StreamingAssets/Switch/scores/score_{}",
+                "StreamingAssets/Switch/share_scores/score_{}"
                 song_id.to_lowercase()
             ));
 
             let mut out_score_path = out_base_path.to_owned();
             out_score_path.push(format!(
-                "StreamingAssets/Switch/scores/score_{}",
+                "StreamingAssets/Switch/share_scores/score_{}",
                 song_id.to_lowercase()
             ));
 
@@ -560,13 +557,6 @@ impl Map {
                 &map.song_info.bpm_changes,
             );
         }
-        // Oddly, they introduce a duplicate share_scores directory, with all score
-        // files repacked remaining untouched
-        let copy_opts = fs_extra::dir::CopyOptions::new()
-            .overwrite(true)
-            .content_only(true);
-        // Users should handle file operation errors themselves
-        fs_extra::dir::copy(scores_dir, share_scores_dir, &copy_opts).unwrap();
 
         patch_share_data(&share_data_path, &out_share_data_path, &maps);
 
