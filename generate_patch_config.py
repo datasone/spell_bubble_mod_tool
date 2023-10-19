@@ -16,6 +16,7 @@ class IPConfig:
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: {} [OUT_TOML] [IDA_OCCURENCE_PROCESSED_TXT] ...")
+        exit(1)
 
     configs = []
 
