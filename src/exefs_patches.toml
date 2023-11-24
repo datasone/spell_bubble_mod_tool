@@ -1,439 +1,349 @@
 [[patches]]
 # TitleMenu::SetSound
 offset = 0x017D9938
-instruction = "MOV             W0, #0x118"
+instruction = "MOV             W0, #0x11E"
 
 [[patches]]
 # GallerySoundList::GetPlayingMusicID
 offset = 0x017FF394
-instruction = "MOV             W0, #0x118"
+instruction = "MOV             W0, #0x11E"
 
 [[patches]]
 # GameManager::Initialize
 offset = 0x01802FD8
-instruction = "CMP             W8, #0x118"
+instruction = "CMP             W8, #0x11E"
 
 [[patches]]
 # AppData::CreateMusicIDList
 offset = 0x018944F0
-instruction = "MOV             W1, #0x118"
+instruction = "MOV             W1, #0x11E"
 
 [[patches]]
 # AppData::InitReleaseItems
 offset = 0x0189622C
-instruction = "MOV             W9, #0x118"
+instruction = "MOV             W9, #0x11E"
 
 [[patches]]
 # AppData::.cctor
 offset = 0x0189CEB4
-instruction = "MOV             W10, #0x118"
+instruction = "MOV             W10, #0x11E"
 
 [[patches]]
 # SceneCharacterSelect::SetGameSetting
-offset = 0x01AEBEC4
-instruction = "CMP             W10, #0x118"
+offset = 0x01AEC0A4
+instruction = "CMP             W10, #0x11E"
 
 [[patches]]
 # SceneCharacterSelect::SetMusicTitle
-offset = 0x01AEC1C8
-instruction = "CMP             W21, #0x118"
+offset = 0x01AEC3A8
+instruction = "CMP             W21, #0x11E"
 
 [[patches]]
 # StageSelectPanel::SetDetail
-offset = 0x01B61EEC
-instruction = "CMP             W22, #0x118"
+offset = 0x01B620DC
+instruction = "CMP             W22, #0x11E"
 
 [[patches]]
 # StageSoundList::Init
-offset = 0x01B625F8
-instruction = "CMP             W28, #0x118"
+offset = 0x01B627E8
+instruction = "CMP             W28, #0x11E"
 
 [[patches]]
 # StageSoundList::SetStageSoundList
-offset = 0x01B62874
-instruction = "CMP             W8, #0x118"
+offset = 0x01B62A64
+instruction = "CMP             W8, #0x11E"
 
 [[patches]]
 # StageSelectPanel::PlaySampleBGM
-offset = 0x01B62F7C
-instruction = "CMP             W19, #0x118"
+offset = 0x01B6316C
+instruction = "CMP             W19, #0x11E"
 
 [[patches]]
 # StageSelectPanel::SetBackGround
-offset = 0x01B632A4
-instruction = "CMP             W9, #0x118"
+offset = 0x01B63494
+instruction = "CMP             W9, #0x11E"
 
 [[patches]]
 # StageSelectPanel::SetBackGround
-offset = 0x01B633C4
-instruction = "CMP             W9, #0x118"
+offset = 0x01B635B4
+instruction = "CMP             W9, #0x11E"
 
 [[patches]]
 # StageSoundList::UpdateSort
-offset = 0x01B643D0
-instruction = "MOV             W1, #0x118"
+offset = 0x01B645C0
+instruction = "MOV             W1, #0x11E"
 
 [[patches]]
 # StageSelectPanel::PushButtonHorizontal
-offset = 0x01B64BC8
-instruction = "CMP             W23, #0x118"
+offset = 0x01B64DB8
+instruction = "CMP             W23, #0x11E"
 
 [[patches]]
 # StageSelectPanel::PushButtonHorizontal
-offset = 0x01B64C38
-instruction = "CMP             W23, #0x118"
+offset = 0x01B64E28
+instruction = "CMP             W23, #0x11E"
 
 [[patches]]
 # StageSelectPanel::PushButtonHorizontal
-offset = 0x01B65134
-instruction = "CMP             W22, #0x118"
+offset = 0x01B65324
+instruction = "CMP             W22, #0x11E"
 
 [[patches]]
 # StageSelectPanel::PushButtonHorizontal
-offset = 0x01B651A4
-instruction = "CMP             W22, #0x118"
+offset = 0x01B65394
+instruction = "CMP             W22, #0x11E"
 
 [[patches]]
 # MusicData::GetMusicIDList
-offset = 0x01BCA208
-instruction = "CMP             W26, #0x118"
+offset = 0x01BCA3F8
+instruction = "CMP             W26, #0x11E"
 
 [[patches]]
 # MusicData::GetMusicIDList
-offset = 0x01BCA2AC
-instruction = "CMP             W24, #0x118"
+offset = 0x01BCA49C
+instruction = "CMP             W24, #0x11E"
 
 [[patches]]
 # MusicData::.cctor
-offset = 0x01BCABC8
-instruction = "MOV             W19, #0x118"
+offset = 0x01BCADB8
+instruction = "MOV             W19, #0x11E"
 
 [[patches]]
 # MusicData.<InitializeAsync>d__4::MoveNext
-offset = 0x01BF8F08
-instruction = "MOV             W20, #0x118"
+offset = 0x01BF90F8
+instruction = "MOV             W20, #0x11E"
 
 [[patches]]
 # MusicData.<InitializeAsync>d__4::MoveNext
-offset = 0x01BF90F4
-instruction = "MOV             W20, #0x118"
+offset = 0x01BF92E4
+instruction = "MOV             W20, #0x11E"
 
 [[patches]]
 # MusicData.<InitializeAsync>d__4::MoveNext
-offset = 0x01BF9D18
-instruction = "MOV             W20, #0x118"
+offset = 0x01BF9F08
+instruction = "MOV             W20, #0x11E"
 
 [[patches]]
 # ChallengeData.<InitializeAsync>d__4::MoveNext
-offset = 0x01C7413C
-instruction = "MOV             W8, #0x118"
+offset = 0x01C53B3C
+instruction = "MOV             W8, #0x11E"
 
 [[patches]]
 # RuleSetting::Init
-offset = 0x01F2902C
-instruction = "MOV             W8, #0x118"
+offset = 0x01F292BC
+instruction = "MOV             W8, #0x11E"
 
 [[patches]]
 # SceneGallery::get_IsPlaying
-offset = 0x01FCCF44
-instruction = "CMP             W8, #0x118"
+offset = 0x01FCD1D4
+instruction = "CMP             W8, #0x11E"
 
 [[patches]]
 # SceneGallery::Update
-offset = 0x01FCD82C
-instruction = "CMP             W8, #0x118"
+offset = 0x01FCDABC
+instruction = "CMP             W8, #0x11E"
 
 [[patches]]
 # SceneGallery::CheckBGM
-offset = 0x01FCDEE4
-instruction = "CMP             W8, #0x118"
+offset = 0x01FCE174
+instruction = "CMP             W8, #0x11E"
 
 [[patches]]
 # SceneGallery::SetSoundTest
-offset = 0x01FCE1FC
-instruction = "CMP             W8, #0x118"
+offset = 0x01FCE48C
+instruction = "CMP             W8, #0x11E"
 
 [[patches]]
 # SceneGallery::SetSoundTest
-offset = 0x01FCE214
-instruction = "CMP             W8, #0x118"
+offset = 0x01FCE4A4
+instruction = "CMP             W8, #0x11E"
 
 [[patches]]
 # SceneGallery::SetNowPlaying
-offset = 0x01FCEA18
-instruction = "MOV             W8, #0x118"
+offset = 0x01FCECA8
+instruction = "MOV             W8, #0x11E"
 
 [[patches]]
 # SceneGallery::.ctor
-offset = 0x01FCFE1C
-instruction = "MOV             W8, #0x118"
+offset = 0x01FD00AC
+instruction = "MOV             W8, #0x11E"
 
 [[patches]]
 # SceneMainMenu::InitGameSetting
-offset = 0x01FDB300
-instruction = "MOV             W0, #0x118"
-
-[[patches]]
-# InformationData.<InitializeAsync>d__4::MoveNext
-offset = 0x020C5DA8
-instruction = "MOV             W21, #0x118"
+offset = 0x01FDB590
+instruction = "MOV             W0, #0x11E"
 
 [[patches]]
 # StageSelectPanel::SetBackGround
-offset = 0x01B6322C
-instruction = "CMP             W22, #0x117"
+offset = 0x01B6341C
+instruction = "CMP             W22, #0x11D"
 
 [[patches]]
 # StageSelectPanel::SetBackGround
-offset = 0x01B63344
-instruction = "CMP             W22, #0x117"
+offset = 0x01B63534
+instruction = "CMP             W22, #0x11D"
 
 [[patches]]
 # StageSelectPanel::SetBackGround
-offset = 0x01B63454
-instruction = "CMP             W20, #0x117"
+offset = 0x01B63644
+instruction = "CMP             W20, #0x11D"
 
 [[patches]]
 # StageSelectPanel::PushButtonUD
-offset = 0x01B6480C
-instruction = "MOV             W1, #0x117"
+offset = 0x01B649FC
+instruction = "MOV             W1, #0x11D"
 
 [[patches]]
 # StageSelectPanel::PushButtonHorizontal
-offset = 0x01B64FE0
-instruction = "MOV             W1, #0x117"
+offset = 0x01B651D0
+instruction = "MOV             W1, #0x11D"
 
 [[patches]]
 # StageSelectPanel::PushButtonX
-offset = 0x01B6573C
-instruction = "MOV             W1, #0x117"
+offset = 0x01B6592C
+instruction = "MOV             W1, #0x11D"
 
 [[patches]]
 # MusicData::GetInfo
-offset = 0x01BC9B30
-instruction = "CMP             W20, #0x117"
+offset = 0x01BC9D20
+instruction = "CMP             W20, #0x11D"
 
 [[patches]]
 # MusicData::GetMusicIDList
-offset = 0x01BC9FB4
-instruction = "MOV             W1, #0x117"
+offset = 0x01BCA1A4
+instruction = "MOV             W1, #0x11D"
 
 [[patches]]
 # MusicData::GetMusicIDList
-offset = 0x01BCA008
-instruction = "CMP             W20, #0x117"
+offset = 0x01BCA1F8
+instruction = "CMP             W20, #0x11D"
 
 [[patches]]
 # MusicData::GetMusicIDList
-offset = 0x01BCA048
-instruction = "CMP             W21, #0x117"
+offset = 0x01BCA238
+instruction = "CMP             W21, #0x11D"
 
 [[patches]]
 # MusicData::GetMusicIDList
-offset = 0x01BCA0F4
-instruction = "CMP             W20, #0x117"
+offset = 0x01BCA2E4
+instruction = "CMP             W20, #0x11D"
 
 [[patches]]
 # MusicData.<InitializeAsync>d__4::MoveNext
-offset = 0x01BF8D84
-instruction = "MOV             W1, #0x117"
+offset = 0x01BF8F74
+instruction = "MOV             W1, #0x11D"
 
 [[patches]]
 # GameSoundManager.<LoadAllMusicAsync>d__9::MoveNext
-offset = 0x01C23940
-instruction = "CMP             W20, #0x117"
+offset = 0x01C23B80
+instruction = "CMP             W20, #0x11D"
 
 [[patches]]
 # AppData::SortMusic
 offset = 0x0189C3C8
-instruction = "CMP             W8, #0x116"
+instruction = "CMP             W8, #0x11C"
 
 [[patches]]
 # AppData::SortMusic
 offset = 0x0189C43C
-instruction = "CMP             W8, #0x116"
+instruction = "CMP             W8, #0x11C"
 
 [[patches]]
 # SceneCharacterSelect::Update
-offset = 0x01AE1EA0
-instruction = "MOV             W22, #0x112"
+offset = 0x01AE2080
+instruction = "MOV             W22, #0x118"
 
 [[patches]]
 # StageSelectPanel::PlaySampleBGM
-offset = 0x01B62F98
-instruction = "MOV             W0, #0x112"
+offset = 0x01B63188
+instruction = "MOV             W0, #0x118"
 
 [[patches]]
 # SceneChallenge.<Start>d__25::MoveNext
-offset = 0x01E15E6C
-instruction = "MOV             W0, #0x112"
+offset = 0x01E160FC
+instruction = "MOV             W0, #0x118"
 
 [[patches]]
 # SceneCharacterSelect.<CloseStageSelectPanel>d__115::MoveNext
-offset = 0x01E168F0
-instruction = "MOV             W0, #0x112"
+offset = 0x01E16B80
+instruction = "MOV             W0, #0x118"
 
 [[patches]]
 # SceneCharacterSelect.<HandleErrorAsync>d__147::MoveNext
-offset = 0x01E17CE8
-instruction = "MOV             W0, #0x112"
+offset = 0x01E17F78
+instruction = "MOV             W0, #0x118"
 
 [[patches]]
 # SceneCharacterSelect.<Start>d__84::MoveNext
-offset = 0x01E219B8
-instruction = "MOV             W0, #0x112"
+offset = 0x01E21C48
+instruction = "MOV             W0, #0x118"
 
 [[patches]]
 # InformationPopup::StopMusic
 offset = 0x0185DD74
-instruction = "MOV             W0, #0x111"
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneMainMenu.<Start>d__85::MoveNext
 offset = 0x019D3B5C
-instruction = "MOV             W0, #0x111"
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneMainMenu.<Start>d__85::MoveNext
 offset = 0x019D3C40
-instruction = "MOV             W0, #0x111"
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneOption.<Start>d__46::MoveNext
 offset = 0x019D83AC
-instruction = "MOV             W0, #0x111"
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneGallery.<Start>d__52::MoveNext
-offset = 0x01E255D0
-instruction = "MOV             W0, #0x111"
+offset = 0x01E25860
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneHelp.<Start>d__22::MoveNext
-offset = 0x01E26764
-instruction = "MOV             W0, #0x111"
+offset = 0x01E269F4
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneGallery::SetNowPlaying
-offset = 0x01FCEA3C
-instruction = "MOV             W0, #0x111"
+offset = 0x01FCECCC
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneOption::Update
-offset = 0x023EC3F8
-instruction = "MOV             W0, #0x111"
+offset = 0x023EC6C8
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneOption::SetPopup
-offset = 0x023ED0F8
-instruction = "MOV             W0, #0x111"
+offset = 0x023ED3C8
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
 # SceneOption::FinishCorrection
-offset = 0x023EFE24
-instruction = "MOV             W0, #0x111"
+offset = 0x023F00F4
+instruction = "MOV             W0, #0x117"
 
 [[patches]]
-# InformationPopup::StopMusic
-offset = 0x0185DD74
-instruction = "MOV             W0, #0x111"
+# TitleMenu::SetSound
+offset = 0x017D9860
+instruction = "CMP             W20, #0x116"
 
 [[patches]]
-# SceneMainMenu.<Start>d__85::MoveNext
-offset = 0x019D3B5C
-instruction = "MOV             W0, #0x111"
+# GameManager::Initialize
+offset = 0x01802D08
+instruction = "MOV             W9, #0x116"
 
 [[patches]]
-# SceneMainMenu.<Start>d__85::MoveNext
-offset = 0x019D3C40
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption.<Start>d__46::MoveNext
-offset = 0x019D83AC
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneGallery.<Start>d__52::MoveNext
-offset = 0x01E255D0
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneHelp.<Start>d__22::MoveNext
-offset = 0x01E26764
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneGallery::SetNowPlaying
-offset = 0x01FCEA3C
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption::Update
-offset = 0x023EC3F8
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption::SetPopup
-offset = 0x023ED0F8
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption::FinishCorrection
-offset = 0x023EFE24
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# InformationPopup::StopMusic
-offset = 0x0185DD74
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneMainMenu.<Start>d__85::MoveNext
-offset = 0x019D3B5C
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneMainMenu.<Start>d__85::MoveNext
-offset = 0x019D3C40
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption.<Start>d__46::MoveNext
-offset = 0x019D83AC
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneGallery.<Start>d__52::MoveNext
-offset = 0x01E255D0
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneHelp.<Start>d__22::MoveNext
-offset = 0x01E26764
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneGallery::SetNowPlaying
-offset = 0x01FCEA3C
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption::Update
-offset = 0x023EC3F8
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption::SetPopup
-offset = 0x023ED0F8
-instruction = "MOV             W0, #0x111"
-
-[[patches]]
-# SceneOption::FinishCorrection
-offset = 0x023EFE24
-instruction = "MOV             W0, #0x111"
+# GameManager::Initialize
+offset = 0x01802FE0
+instruction = "MOV             W1, #0x116"
 
 [[patches]]
 # GameSoundManager.<LoadSingleMusicAsync>d__8::MoveNext
-offset = 0x01C24D58
-instruction = "CMP             W9, #0x10F"
+offset = 0x01C24F98
+instruction = "CMP             W9, #0x115"
