@@ -132,18 +132,24 @@ fn main() {
         _ => unreachable!(),
     }
 
-    println!(
-        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/BridgeLib.\
-         cs"
-    );
-    println!(
-        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/\
-         SpellBubbleModToolHelper.csproj"
-    );
-    println!(
-        "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/\
-         SpellBubbleModToolHelper.csproj.user"
-    );
+    let cs_helper_files = [
+        "BridgeInfo.cs",
+        "GetInfo.cs",
+        "MainAssetBundle.cs",
+        "MD4.cs",
+        "PatchAudio.cs",
+        "rd.xml",
+        "ScoreFiles.cs",
+        "ShareData.cs",
+        "SpellBubbleModToolHelper.csproj",
+        "SpellBubbleModToolHelper.csproj.user",
+        "UnlockFeatures.cs",
+        "Wrappers.cs",
+    ];
+
+    for file in cs_helper_files {
+        println!("cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/{file}");
+    }
 
     if let Os::Windows = os {
         println!("cargo:rustc-link-lib=static=SpellBubbleModToolHelper");
