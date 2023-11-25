@@ -49,14 +49,5 @@ impl Drop for StringWrapper {
 }
 
 extern "C" {
-    pub fn initialize(class_package_path: *const c_char);
     pub fn free_dotnet(pointer: *mut c_void);
-}
-
-pub fn initialize_assets(class_package_path: PathBuf) {
-    let class_package_path = CString::new(class_package_path.to_str().unwrap()).unwrap();
-
-    unsafe {
-        initialize(class_package_path.as_ptr());
-    }
 }

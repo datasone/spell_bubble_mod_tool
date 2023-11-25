@@ -6,7 +6,7 @@ use std::{
 };
 
 use clap::Parser;
-use interop::{initialize_assets, DualArrayWrapper, StringWrapper};
+use interop::{DualArrayWrapper, StringWrapper};
 
 extern "C" {
     pub fn get_area_music_list(share_data_path: *const c_char) -> DualArrayWrapper;
@@ -21,8 +21,6 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-
-    initialize_assets(args.class_package_path);
 
     let share_data_path = CString::new(args.share_data_path.to_str().unwrap()).unwrap();
 

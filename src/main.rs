@@ -15,7 +15,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use interop::{initialize_assets, ArrayWrapper, StringWrapper};
+use interop::{ArrayWrapper, StringWrapper};
 use itertools::Itertools;
 
 #[derive(Parser, Debug)]
@@ -123,7 +123,6 @@ extern "C" {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    initialize_assets(args.class_package_path);
 
     match &args.command {
         Commands::UnlockFeatures {
