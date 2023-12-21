@@ -1,4 +1,5 @@
 /target
 /lib
+/.idea
 # enums.rs should be generated from enum_generator
 /src/map/enums.rs
