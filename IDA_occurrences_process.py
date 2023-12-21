@@ -69,8 +69,9 @@ BLACKLISTED_INFOS = [
     "BubbleGroup",
     "ChannelData",
     "EncodingTable",
+    "ExecutionContext",
+    "FileIOManager",
     "FilePanel",
-    "InformationData",
     "InputManager",
     "NotificationDialogDetail",
     "PiaTestMenu",
@@ -101,6 +102,7 @@ BLACKLISTED_INFOS = [
     "UguiNovelTextGenerator",
     "UserStatusManager",
     "UserStatusManager",
+    "iTween",
     "sub_",
 ]
 
