@@ -9,7 +9,7 @@ use std::{
     str::FromStr,
 };
 
-use enums::{Area, Music};
+pub use enums::{Area, Music};
 pub use interop::get_song_info;
 use interop::{patch_acb_file, patch_score_file, patch_share_data};
 use itertools::Itertools;
@@ -47,15 +47,15 @@ pub enum Lang {
     Cht,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct SongInfoText {
-    title:       String,
-    title_kana:  String,
-    sub_title:   String,
-    artist:      String,
-    artist2:     String,
-    artist_kana: String,
-    original:    String,
+    pub title:       String,
+    pub title_kana:  String,
+    pub sub_title:   String,
+    pub artist:      String,
+    pub artist2:     String,
+    pub artist_kana: String,
+    pub original:    String,
 }
 
 impl SongInfoText {
@@ -90,8 +90,8 @@ impl SongInfoText {
     }
 }
 
-/// (u16, u16) is Index, TargetBpm pair
-#[derive(Debug, Default, Serialize, Deserialize)]
+/// (u16, f32) is Index, TargetBpm pair
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct BpmChanges(pub Vec<(u16, f32)>);
 
 impl BpmChanges {
@@ -205,8 +205,11 @@ impl BpmChanges {
                 let bpm = split.next().and_then(|s| s.parse::<f32>().ok()).unwrap();
 
                 let mut idx = 0;
+
+                let first_line_len = beats_layout.0.get(&1).copied();
+
                 let mut cur_line = 1;
-                let mut cur_line_len = 4;
+                let mut cur_line_len = first_line_len.unwrap_or(4);
                 while cur_line < line {
                     idx += cur_line_len;
 
@@ -232,7 +235,7 @@ impl BpmChanges {
 
 #[derive(Debug, Default, Clone)]
 /// (u16, u16) is LineIdx, LineLength pair
-struct BeatsLayout(HashMap<u16, u16>);
+pub struct BeatsLayout(HashMap<u16, u16>);
 
 impl BeatsLayout {
     fn from_script(script: impl AsRef<str>) -> Option<Self> {
@@ -317,7 +320,7 @@ impl From<String> for MusicID {
 }
 
 #[serde_as]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct SongInfo {
     pub id:            MusicID,
     pub music_file:    String,
@@ -330,7 +333,7 @@ pub struct SongInfo {
     pub prev_start_ms: u32,
     pub bpm_changes:   Option<BpmChanges>,
     #[serde(skip)]
-    beats_layout:      Option<BeatsLayout>,
+    pub beats_layout:  Option<BeatsLayout>,
     #[serde(skip)]
     pub dlc_index:     u16,
 }
@@ -522,7 +525,7 @@ impl MapScore {
 }
 
 #[serde_as]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Map {
     pub song_info:  SongInfo,
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
@@ -552,12 +555,16 @@ impl Map {
         Ok(())
     }
 
-    pub fn patch_files(
+    pub fn patch_files<T, U>(
         game_files_dir: &Path,
         out_dir: &Path,
-        maps: &Vec<Map>,
+        maps: T,
         replace_existing: bool,
-    ) -> std::io::Result<()> {
+    ) -> std::io::Result<()>
+    where
+        T: IntoIterator<Item = U> + Clone,
+        U: std::borrow::Borrow<Map>,
+    {
         let mut share_data_path = game_files_dir.to_owned();
         share_data_path.push("StreamingAssets/Switch/share_data");
 
@@ -578,7 +585,8 @@ impl Map {
             .map(std::fs::create_dir_all)
             .collect::<Result<Vec<_>, _>>()?;
 
-        for map in maps {
+        for map in maps.clone() {
+            let map = map.borrow();
             let song_id = map.song_info.id.to_string();
 
             let mut acb_path = game_files_dir.to_owned();
@@ -773,6 +781,10 @@ impl Map {
             })
             .sorted_by(|a, b| a.partial_cmp(b).unwrap())
             .collect::<Vec<_>>();
+
+        if densities.is_empty() {
+            return 0;
+        }
 
         let take_len = (densities.len() - 1) / 5;
         let take_from = densities.len() - take_len - 1;

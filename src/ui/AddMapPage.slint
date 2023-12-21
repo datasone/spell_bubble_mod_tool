@@ -1,0 +1,198 @@
+import { VerticalBox, HorizontalBox, LineEdit, Button, StandardTableView } from "std-widgets.slint";
+import { CustomMapEditor, MapInfo, MapInfoText, CustomMapModel } from "CustomMapEditor.slint";
+import { Utilities } from "Utilities.slint";
+
+export { CustomMapModel, MapInfo, MapInfoText }
+
+export component AddMapPage inherits Rectangle {
+    callback prompt_get_path() -> string;
+
+    VerticalBox {
+        HorizontalBox {
+            Text {
+                text: @tr("Dumped RomFS path");
+                vertical-alignment: center;
+                horizontal-stretch: 0;
+            }
+            LineEdit {
+                text: romfs_btn.path;
+                enabled: false;
+                horizontal-stretch: 1;
+            }
+            romfs_btn := Button {
+                out property <string> path <=> CustomMapAdapter.romfs_path;
+                out property <bool> path_selected;
+                text: @tr("Choose Path");
+                max-width: 120px;
+                clicked => {
+                    self.path_selected = true;
+                    self.path = root.prompt_get_path();
+                }
+            }
+
+            Text {
+                text: @tr("Dumped ExeFS path");
+                vertical-alignment: center;
+                horizontal-stretch: 0;
+            }
+            LineEdit {
+                text: exefs_btn.path;
+                enabled: false;
+                horizontal-stretch: 1;
+            }
+            exefs_btn := Button {
+                out property <string> path <=> CustomMapAdapter.exefs_path;
+                out property <bool> path_selected;
+                text: @tr("Choose Path");
+                max-width: 120px;
+                clicked => {
+                    self.path_selected = true;
+                    self.path = root.prompt_get_path();
+                }
+            }
+        }
+
+        HorizontalBox {
+            Button {
+                text: @tr("Import from file");
+                max-width: 120px;
+                horizontal-stretch: 0;
+                clicked => { CustomMapAdapter.import_from_file(); }
+            }
+
+            Button {
+                text: @tr("Export to file");
+                max-width: 120px;
+                horizontal-stretch: 0;
+                clicked => { CustomMapAdapter.export_to_file(); }
+            }
+
+            Button {
+                text: @tr("Edit map");
+                max-width: 120px;
+                horizontal-stretch: 0;
+                enabled: maps.current-row != -1;
+                clicked => {
+                    CustomMapModel.set_map(CustomMapAdapter.get_selected_map());
+                    editor_popup.visible = true;
+                }
+            }
+
+            Button {
+                text: @tr("New map");
+                max-width: 120px;
+                horizontal-stretch: 0;
+                enabled: CustomMapAdapter.can_add_map(CustomMapAdapter.maps);
+                clicked => {
+                    CustomMapAdapter.add_map();
+                }
+            }
+
+            Button {
+                text: @tr("Delete map");
+                max-width: 120px;
+                horizontal-stretch: 0;
+                enabled: maps.current-row != -1;
+                clicked => {
+                    CustomMapAdapter.delete_map();
+                }
+            }
+
+            Text {
+                text: "";
+            }
+
+            Button {
+                text: @tr("Generate mod");
+                max-width: 120px;
+                horizontal-stretch: 0;
+                enabled: maps.rows.length != 0 && !Utilities.is_empty(romfs_btn.path) && !Utilities.is_empty(exefs_btn.path);
+                clicked => { CustomMapAdapter.generate_mod(); }
+            }
+        }
+
+        maps := StandardTableView {
+            sort-ascending(index) => {
+                CustomMapAdapter.sort_ascending(index);
+            }
+
+            sort-descending(index) => {
+                CustomMapAdapter.sort-descending(index);
+            }
+
+            current-row <=> CustomMapAdapter.current_row;
+
+            min-width: 1600px;
+            min-height: 600px;
+            columns: [
+                { title: @tr("ID") },
+                { title: @tr("Title") },
+                { title: @tr("Artist") },
+                { title: @tr("Original") },
+                { title: @tr("Initial BPM") },
+                { title: @tr("Area") },
+                { title: @tr("Level") },
+                { title: @tr("Music file") },
+                { title: @tr("Preview start") },
+            ];
+            rows: CustomMapAdapter.row_data;
+        }
+    }
+
+    editor_popup := Rectangle {
+        background: #1c1c1c;
+        border-color: #393b40;
+        border-width: 2px;
+        border-radius: 8px;
+
+        x: 330px;
+        y: 0px;
+        width: 1000px;
+        height: 500px;
+
+        visible: false;
+
+        HorizontalLayout {
+            padding-bottom: 15px;
+            editor := CustomMapEditor {
+
+                close_self(succeed) => {
+                    if (succeed) {
+                        CustomMapAdapter.update_selected_map(CustomMapModel.current_map);
+                    }
+                    editor_popup.visible = false;
+                }
+            }
+        }
+    }
+}
+
+export global CustomMapAdapter {
+    callback sort_ascending(int);
+    callback sort_descending(int);
+
+    pure callback can_add_map([MapInfo]) -> bool;
+    callback add_map();
+    callback delete_map();
+
+    in-out property <int> current_row: -1;
+
+    callback get_selected_map() -> MapInfo;
+    callback update_selected_map(MapInfo);
+
+    callback import_from_file();
+    callback export_to_file();
+
+    in-out property <string> romfs_path;
+    in-out property <string> exefs_path;
+
+    callback generate_mod();
+
+    pure callback generate_row_data([MapInfo]) -> [[StandardListViewItem]];
+    pure callback to_row_data(MapInfo) -> [StandardListViewItem];
+
+    callback update_row_data();
+
+    in-out property <[MapInfo]> maps: [];
+    in-out property <[[StandardListViewItem]]> row_data: [];
+}

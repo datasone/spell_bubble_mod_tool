@@ -1,22 +1,25 @@
+#![feature(try_blocks)]
+
 mod exefs;
 mod external_map;
 mod ffmpeg_helper;
 mod interop;
 mod map;
+mod song_info;
+mod ui;
 
 use std::{
-    ffi::{c_char, c_int, CStr, CString},
-    fs,
-    fs::File,
-    io::{BufWriter, Write},
-    mem,
+    ffi::{c_char, c_int, CString},
+    fs, mem,
     path::{Path, PathBuf},
     process::exit,
 };
 
 use clap::{Parser, Subcommand};
-use interop::{ArrayWrapper, StringWrapper};
+use interop::ArrayWrapper;
 use itertools::Itertools;
+
+use crate::song_info::{get_song_info, write_song_info_csv};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -116,13 +119,14 @@ extern "C" {
         character_target_dlc: c_int,  // Unused for now
         patch_special_rules: c_int,   // C style bool, 0 for false, others for true
     );
-
-    pub fn get_dlc_list(share_data_path: *const c_char) -> ArrayWrapper;
 }
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    if std::env::args().len() <= 1 {
+        return ui::start_gui();
+    }
 
+    let args = Args::parse();
 
     match &args.command {
         Commands::UnlockFeatures {
@@ -276,75 +280,9 @@ fn main() -> anyhow::Result<()> {
             romfs_root,
             out_csv,
         } => {
-            let mut share_data = romfs_root.clone();
-            share_data.push("StreamingAssets/Switch/share_data");
-            let share_data_path = CString::new(share_data.to_string_lossy().as_ref()).unwrap();
+            let infos = get_song_info(romfs_root);
 
-            let dlcs = unsafe {
-                let arr = get_dlc_list(share_data_path.as_ptr());
-                let arr = std::slice::from_raw_parts(
-                    arr.array as *const *const c_char,
-                    arr.size as usize,
-                );
-                arr.iter().map(|&p| StringWrapper(p)).collect::<Vec<_>>()
-            };
-
-            let dlcs = unsafe {
-                dlcs.iter()
-                    .map(|sw| CStr::from_ptr(sw.0).to_str().unwrap())
-                    .collect::<Vec<_>>()
-            };
-
-            let maps = map::get_song_info(romfs_root);
-
-            let mut writer = BufWriter::new(File::create(out_csv).unwrap());
-            // Write BOM for Windows programs to recognize encoding
-            writer.write_all(&[0xEF, 0xBB, 0xBF]).unwrap();
-            let mut writer = csv::Writer::from_writer(writer);
-
-            writer
-                .write_record([
-                    "ID",
-                    "Title",
-                    "Artist",
-                    "Original",
-                    "Effective BPM",
-                    "Has Tempo Changes",
-                    "Levels - Easy",
-                    "Levels - Normal",
-                    "Levels - Hard",
-                    "Length",
-                    "Area",
-                    "DLC",
-                ])
-                .unwrap();
-
-            maps.iter()
-                .map(|(m, e, n, h)| {
-                    let song_info = &m.song_info;
-                    let info_text = song_info.info_text.get(&map::Lang::JA).unwrap();
-                    writer.write_record(&[
-                        song_info.id.to_string(),
-                        info_text.title(),
-                        info_text.artist(),
-                        info_text.original(),
-                        m.effective_bpm().to_string(),
-                        song_info.is_bpm_change().to_string(),
-                        m.level(map::Difficulty::Easy, Some(e)).to_string(),
-                        m.level(map::Difficulty::Normal, Some(n)).to_string(),
-                        m.level(map::Difficulty::Hard, Some(h)).to_string(),
-                        song_info.length.to_string(),
-                        song_info.area.to_string(),
-                        if song_info.dlc_index == 0 {
-                            "本体"
-                        } else {
-                            dlcs[song_info.dlc_index as usize - 1]
-                        }
-                        .to_string(),
-                    ])
-                })
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
+            write_song_info_csv(infos, out_csv)
         }
     }
 

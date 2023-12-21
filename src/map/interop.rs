@@ -276,12 +276,15 @@ pub(super) fn patch_score_file(
     }
 }
 
-pub(super) fn patch_share_data(
+pub(super) fn patch_share_data<T, U>(
     share_data_file: &Path,
     out_path: &Path,
-    maps: &[Map],
+    maps: T,
     replace_existing: bool,
-) {
+) where
+    T: IntoIterator<Item = U>,
+    U: std::borrow::Borrow<Map>,
+{
     let share_data_c = CString::new(share_data_file.to_string_lossy().to_string()).unwrap();
     let out_path_c = CString::new(out_path.to_string_lossy().to_string()).unwrap();
 
@@ -291,6 +294,7 @@ pub(super) fn patch_share_data(
     let mut song_entries: Vec<SongEntry> = vec![];
 
     for map in maps {
+        let map = map.borrow();
         let area_c = if map.song_info.area == Area::NotDefined {
             CString::new("").unwrap()
         } else {

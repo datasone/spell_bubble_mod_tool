@@ -148,7 +148,9 @@ fn main() {
     ];
 
     for file in cs_helper_files {
-        println!("cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/{file}");
+        println!(
+            "cargo:rerun-if-changed=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/{file}"
+        );
     }
 
     if let Os::Windows = os {
@@ -156,4 +158,14 @@ fn main() {
     } else {
         println!("cargo:rustc-link-lib=static:+verbatim=SpellBubbleModToolHelper.a");
     }
+
+    let mut slint_root = "src/ui";
+
+    if let Os::Windows = os {
+        if let Some("zh_CN") = option_env!("BUILD_LANG") {
+            slint_root = "src/ui/win-zh_CN";
+        }
+    }
+
+    slint_build::compile(format!("{slint_root}/MainWindow.slint")).unwrap();
 }

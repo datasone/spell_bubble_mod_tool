@@ -1,0 +1,86 @@
+import { Button, VerticalBox, HorizontalBox, LineEdit, StandardTableView, ComboBox } from "std-widgets.slint";
+import { Utilities } from "Utilities.slint";
+
+export component DumpInfoPage inherits VerticalBox {
+    callback prompt_get_path() -> string;
+
+    in property <string> path;
+
+    HorizontalBox {
+        Text {
+            text: @tr("Path to dumped RomFS");
+            vertical-alignment: center;
+            horizontal-stretch: 0;
+        }
+        LineEdit {
+            text: btn.path;
+            enabled: false;
+            horizontal-stretch: 1;
+        }
+        btn := Button {
+            out property <string> path;
+            text: @tr("Choose Path");
+            max-width: 120px;
+            clicked => {
+                self.path = root.prompt_get_path();
+            }
+        }
+    }
+
+    HorizontalBox {
+        Text {
+            text: @tr("Information Language");
+            vertical-alignment: center;
+            horizontal-stretch: 0;
+        }
+        ComboBox {
+            model: [@tr("Japanese"), @tr("Chinese (Simplified)"), @tr("Chinese (Traditional)"), @tr("English"), @tr("Korean")];
+            selected => { SongInfoAdapter.load_data(self.current-index); }
+            enabled: Utilities.is_empty(btn.path);
+        }
+        Button {
+            text: @tr("Generate CSV");
+            horizontal-stretch: 0;
+            clicked => { SongInfoAdapter.generate_csv(); }
+            enabled: Utilities.is_empty(btn.path);
+        }
+    }
+
+    StandardTableView {
+        sort-ascending(index) => {
+            SongInfoAdapter.sort_ascending(index);
+        }
+
+        sort-descending(index) => {
+            SongInfoAdapter.sort-descending(index);
+        }
+
+        min-width: 1600px;
+        columns: [
+            { title: @tr("ID") },
+            { title: @tr("Title") },
+            { title: @tr("Artist") },
+            { title: @tr("Original") },
+            { title: @tr("Effective BPM") },
+            { title: @tr("Tempo Changes") },
+            { title: @tr("Levels(Easy)") },
+            { title: @tr("Levels(Normal)") },
+            { title: @tr("Levels(Hard)") },
+            { title: @tr("Length") },
+            { title: @tr("Area") },
+            { title: @tr("DLC") },
+        ];
+        rows: SongInfoAdapter.row_data;
+    }
+}
+
+export global SongInfoAdapter {
+    callback load_data(int);
+    callback generate_csv();
+
+    callback sort_ascending(int);
+    callback sort_descending(int);
+
+    in property <string> path;
+    in-out property <[[StandardListViewItem]]> row_data: [];
+}

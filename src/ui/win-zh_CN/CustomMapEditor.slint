@@ -1,0 +1,355 @@
+import { GridBox, HorizontalBox, VerticalBox, LineEdit, Button, ComboBox, CheckBox, StandardButton } from "std-widgets.slint";
+import { Utilities } from "Utilities.slint";
+
+component HintWidget inherits Rectangle {
+    in property <string> hint;
+
+    visible: !Utilities.is_empty(hint);
+
+    Text {
+        text: "?";
+        padding: 5px;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {}
+
+    Rectangle {
+        states [
+            visible when ta.has-hover: {
+                opacity: 0.8;
+                in {
+                   animate opacity { duration: 175ms; delay: 700ms; }
+                }
+            }
+        ]
+
+        x: ta.mouse_x - 1rem - self.width;
+        y: ta.mouse_y + 1rem;
+
+        background: #1c1c1c;
+        opacity: 0;
+        width: tt_l.preferred-width;
+        height: tt_l.preferred-height;
+        tt_l := HorizontalLayout {
+            padding: 3px;
+            Text { text: hint; }
+        }
+    }
+}
+
+component EditorLine inherits HorizontalBox {
+    in property <string> label;
+    in property <string> label_id;
+    in property <InputType> type;
+    in-out property <string> value;
+    in property <string> hint;
+    in property <string> long_hint;
+
+    Text {
+        text: label;
+        vertical-alignment: center;
+        horizontal-stretch: 0;
+    }
+
+    LineEdit {
+        text <=> value;
+        input-type: type;
+        placeholder-text: hint;
+        horizontal-stretch: 1;
+        edited(s) => { CustomMapModel.update_text(label_id, s); }
+    }
+
+    HintWidget {
+        hint: long_hint;
+    }
+}
+
+export struct BpmChange {
+    idx: int,
+    bpm: float,
+}
+
+export struct MapScore {
+    bpm_changes: [BpmChange],
+    score:       string,
+}
+
+export struct MapInfoText {
+    title:       string,
+    title_kana:  string,
+    sub_title:   string,
+    artist:      string,
+    artist2:     string,
+    artist_kana: string,
+    original:    string,
+}
+
+export struct MapInfo {
+    id:            string,
+    music_file:    string,
+    bpm:           float,
+    offset:        float,
+    length:        int,
+    level:         int,
+    area_idx:      int,
+    area_night:    bool,
+    info_text:     [MapInfoText],
+    prev_start_ms: int,
+    score:         MapScore,
+}
+
+export global CustomMapModel {
+    in-out property <MapInfo> current_map;
+    in-out property <int> current_lang;
+    in-out property <string> bpm;
+    in-out property <string> offset;
+
+    callback create_map() -> MapInfo;
+    callback set_map(MapInfo);
+    set_map(map) => {
+        self.current_map = map;
+        self.bpm = map.bpm;
+        self.offset = map.offset;
+    }
+
+    pure callback get_text(MapInfo, int) -> MapInfoText;
+
+    callback update_text(string, string);
+    callback update_map(string, string, string, string, int, bool, string, MapScore);
+
+    callback from_adofai() -> MapScore;
+    callback from_osu() -> MapScore;
+}
+
+export component CustomMapEditor inherits Dialog {
+    private property <string> id: CustomMapModel.current_map.id;
+    private property <string> music_file: CustomMapModel.current_map.music_file;
+    private property <string> bpm <=> CustomMapModel.bpm;
+    private property <string> offset <=> CustomMapModel.offset;
+    private property <int> area_idx: CustomMapModel.current_map.area_idx;
+    private property <bool> area_night: CustomMapModel.current_map.area_night;
+    private property <string> prev_start_ms: CustomMapModel.current_map.prev_start_ms;
+    private property <MapScore> score: CustomMapModel.current_map.score;
+
+    private property <string> title_field: CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).title;
+    private property <string> title_kana: CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).title_kana;
+    private property <string> sub_title: CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).sub_title;
+    private property <string> artist: CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).artist;
+    private property <string> artist2: CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).artist2;
+    private property <string> artist_kana: CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).artist_kana;
+    private property <string> original: CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).original;
+
+    callback close_self(bool);
+
+    min-width: 1000px;
+    min-height: 450px;
+
+    VerticalBox {
+        HorizontalBox {
+            padding-left: 15px;
+            padding-right: 30px;
+            Text {
+                text: "歌曲信息语言";
+                vertical-alignment: center;
+            }
+            ComboBox {
+                model: ["日语", "简体中文", "繁体中文", "英语", "韩语"];
+                current-index <=> CustomMapModel.current_lang;
+                selected => {
+                    title_field = CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).title;
+                    title_kana = CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).title_kana;
+                    sub_title = CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).sub_title;
+                    artist = CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).artist;
+                    artist2 = CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).artist2;
+                    artist_kana = CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).artist_kana;
+                    original = CustomMapModel.get_text(CustomMapModel.current_map, CustomMapModel.current_lang).original;
+                }
+            }
+        }
+
+        GridBox {
+            Row {
+                EditorLine {
+                    label: "ID";
+                    hint: "内部 ID";
+                    value <=> id;
+                }
+                HorizontalBox {
+                    Text {
+                        text: "音乐文件";
+                        vertical-alignment: center;
+                        horizontal-stretch: 0;
+                    }
+
+                    LineEdit {
+                        enabled: false;
+                        horizontal-stretch: 1;
+                        text <=> music_file;
+                    }
+
+                    Button {
+                        text: "选择文件";
+                        max-width: 120px;
+                        horizontal-stretch: 0;
+                    }
+                }
+                HorizontalBox {
+                    Text {
+                        text: "背景";
+                        vertical-alignment: center;
+                        horizontal-stretch: 0;
+                    }
+
+                    area_select := ComboBox {
+                        pure callback is_night_avail(int) -> bool;
+
+                        is_night_avail(i) => {
+                            if ((i == 0) || (i == 2) || (i == 3) || (i == 9)) {
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        }
+
+                        model: [
+                            "竞技场",
+                            "白玉楼",
+                            "博丽神社",
+                            "雾之湖",
+                            "红魔馆",
+                            "魔法之森",
+                            "迷途竹林",
+                            "守矢神社",
+                            "地灵殿",
+                            "妖怪之山",
+                        ];
+
+                        current-index <=> area_idx;
+                    }
+
+                    CheckBox {
+                        text: "夜晚";
+                        enabled: area_select.is_night_avail(area_select.current-index);
+                        checked <=> area_night;
+                    }
+
+                    HintWidget {
+                        hint: "游戏背景";
+                    }
+                }
+            }
+            Row {
+                EditorLine {
+                    label: "标题";
+                    label_id: "title";
+                    value: title_field;
+                }
+                EditorLine {
+                    label: "子标题";
+                    hint: "可以留空";
+                    label_id: "sub_title";
+                    value: sub_title;
+                }
+                EditorLine {
+                    label: "标题假名";
+                    long_hint: "纯平假名形式的标题，对于非日语的信息，与标题内容相同";
+                    label_id: "title_kana";
+                    value: title_kana;
+                }
+            }
+            Row {
+                EditorLine {
+                    label: "歌手";
+                    label_id: "artist";
+                    value: artist;
+                }
+                EditorLine {
+                    label: "歌手子标题";
+                    hint: "可以留空";
+                    label_id: "artist2";
+                    value: artist2;
+                }
+                EditorLine {
+                    label: "歌手假名";
+                    long_hint: "纯平假名形式的歌手，对于非日语的信息，与标题内容相同";
+                    label_id: "artist_kana";
+                    value: artist_kana;
+                }
+            }
+            Row {
+                EditorLine {
+                    label: "音乐偏移";
+                    long_hint: "音乐与谱面之间的偏移量，以秒为单位";
+                    type: decimal;
+                    value <=> offset;
+                }
+                EditorLine {
+                    label: "初始 BPM";
+                    type: decimal;
+                    value <=> bpm;
+                }
+                EditorLine {
+                    label: "预览时间点";
+                    long_hint: "歌曲选择界面的音乐预览时间点，以毫秒为单位";
+                    type: number;
+                    value <=> prev_start_ms;
+                }
+            }
+        }
+
+        EditorLine {
+            padding-left: 15px;
+            padding-right: 15px;
+
+            label: "原曲";
+            label_id: "original";
+            value: original;
+        }
+
+        HorizontalBox {
+            padding-left: 15px;
+            padding-right: 15px;
+
+            Text {
+                text: "谱面";
+                vertical-alignment: center;
+                horizontal-stretch: 0;
+            }
+
+            Text {
+                padding: 5px;
+                text: "长度：\{Utilities.length(score.score)}";
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            Button {
+                text: ("从符合规则的 osu 谱面导入");
+                horizontal-stretch: 0;
+                clicked => { score = CustomMapModel.from_osu(); }
+            }
+
+            Button {
+                text: "从符合规则的《冰与火之歌》谱面导入";
+                horizontal-stretch: 0;
+                clicked => { score = CustomMapModel.from_adofai(); }
+            }
+        }
+    }
+
+    StandardButton {
+        kind: ok;
+        clicked => {
+            CustomMapModel.update_map(id, music_file, bpm, offset, area_idx, area_night, prev_start_ms, score);
+            close_self(true);
+        }
+    }
+
+    StandardButton {
+        kind: cancel;
+        clicked => {
+            close_self(false);
+        }
+    }
+}

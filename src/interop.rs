@@ -1,8 +1,4 @@
-use std::{
-    ffi::{c_void, CString},
-    os::raw::c_char,
-    path::PathBuf,
-};
+use std::{ffi::c_void, os::raw::c_char};
 
 #[repr(C)]
 #[derive(Debug)]

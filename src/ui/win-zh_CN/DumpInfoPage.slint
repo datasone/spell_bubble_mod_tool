@@ -1,0 +1,86 @@
+import { Button, VerticalBox, HorizontalBox, LineEdit, StandardTableView, ComboBox } from "std-widgets.slint";
+import { Utilities } from "Utilities.slint";
+
+export component DumpInfoPage inherits VerticalBox {
+    callback prompt_get_path() -> string;
+
+    in property <string> path;
+
+    HorizontalBox {
+        Text {
+            text: "已提取 RomFS 路径";
+            vertical-alignment: center;
+            horizontal-stretch: 0;
+        }
+        LineEdit {
+            text: btn.path;
+            enabled: false;
+            horizontal-stretch: 1;
+        }
+        btn := Button {
+            out property <string> path;
+            text: "选择路径";
+            max-width: 120px;
+            clicked => {
+                self.path = root.prompt_get_path();
+            }
+        }
+    }
+
+    HorizontalBox {
+        Text {
+            text: "歌曲信息语言";
+            vertical-alignment: center;
+            horizontal-stretch: 0;
+        }
+        ComboBox {
+            model: ["日语", "简体中文", "繁体中文", "英语", "韩语"];
+            selected => { SongInfoAdapter.load_data(self.current-index); }
+            enabled: Utilities.is_empty(btn.path);
+        }
+        Button {
+            text: "生成 CSV";
+            horizontal-stretch: 0;
+            clicked => { SongInfoAdapter.generate_csv(); }
+            enabled: Utilities.is_empty(btn.path);
+        }
+    }
+
+    StandardTableView {
+        sort-ascending(index) => {
+            SongInfoAdapter.sort_ascending(index);
+        }
+
+        sort-descending(index) => {
+            SongInfoAdapter.sort-descending(index);
+        }
+
+        min-width: 1600px;
+        columns: [
+            { title: "ID" },
+            { title: "标题" },
+            { title: "歌手" },
+            { title: "原曲" },
+            { title: "等效 BPM" },
+            { title: "变速" },
+            { title: "歌曲等级（Easy）" },
+            { title: "歌曲等级（Normal）" },
+            { title: "歌曲等级（Hard）" },
+            { title: "谱面长度" },
+            { title: "背景" },
+            { title: "DLC" },
+        ];
+        rows: SongInfoAdapter.row_data;
+    }
+}
+
+export global SongInfoAdapter {
+    callback load_data(int);
+    callback generate_csv();
+
+    callback sort_ascending(int);
+    callback sort_descending(int);
+
+    in property <string> path;
+    in-out property <[[StandardListViewItem]]> row_data: [];
+}

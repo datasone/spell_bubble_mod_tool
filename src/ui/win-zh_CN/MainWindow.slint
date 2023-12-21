@@ -1,0 +1,33 @@
+import { TabWidget } from "std-widgets.slint";
+import { Utilities } from "Utilities.slint";
+import { DumpInfoPage, SongInfoAdapter } from "DumpInfoPage.slint";
+import { AddMapPage, CustomMapAdapter, CustomMapModel, MapInfo, MapInfoText } from "AddMapPage.slint";
+
+export { Utilities, SongInfoAdapter, CustomMapAdapter, CustomMapModel, MapInfo, MapInfoText }
+
+export component MainWindow inherits Window {
+    callback prompt_get_path() -> string;
+
+    TabWidget {
+        Tab {
+            title: "生成 Mod";
+            AddMapPage {
+                prompt_get_path() => {
+                    return root.prompt_get_path();
+                }
+            }
+        }
+
+        Tab {
+            title: "提取歌曲信息";
+            DumpInfoPage {
+                prompt_get_path => {
+                    self.path = root.prompt_get_path();
+                    SongInfoAdapter.path = self.path;
+                    SongInfoAdapter.load_data(0);
+                    return self.path;
+                }
+            }
+        }
+    }
+}
