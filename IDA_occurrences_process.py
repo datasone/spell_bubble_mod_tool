@@ -68,6 +68,7 @@ def parse_func(func: str) -> str:
 BLACKLISTED_INFOS = [
     "BubbleGroup",
     "ChannelData",
+    "ChannelServices",
     "EncodingTable",
     "ExecutionContext",
     "FileIOManager",
@@ -90,6 +91,7 @@ BLACKLISTED_INFOS = [
     "SceneDebugTitle",
     "SceneResult",
     "ScoreEditorManager",
+    "SemaphoreSlim",
     "SideStory",
     "SkeletonJson",
     "SkeletonRagdoll",
