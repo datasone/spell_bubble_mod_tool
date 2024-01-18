@@ -36,13 +36,13 @@ export component DumpInfoPage inherits VerticalBox {
         ComboBox {
             model: [@tr("Japanese"), @tr("Chinese (Simplified)"), @tr("Chinese (Traditional)"), @tr("English"), @tr("Korean")];
             selected => { SongInfoAdapter.load_data(self.current-index); }
-            enabled: Utilities.is_empty(btn.path);
+            enabled: !Utilities.is_empty(btn.path);
         }
         Button {
             text: @tr("Generate CSV");
             horizontal-stretch: 0;
             clicked => { SongInfoAdapter.generate_csv(); }
-            enabled: Utilities.is_empty(btn.path);
+            enabled: !Utilities.is_empty(btn.path);
         }
     }
 
