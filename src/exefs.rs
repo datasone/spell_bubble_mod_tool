@@ -36,9 +36,13 @@ struct IPConfig {
 #[derive(Serialize, Deserialize)]
 struct InstructionPatch {
     /// IPS32 file format only allows 4-bytes offset
-    offset:      u32,
+    offset:         u32,
     /// Instruction in little endian bytes
-    instruction: AArch64Instruction,
+    instruction:    AArch64Instruction,
+    #[serde(default)]
+    /// If the instruction is intended to be used as override
+    /// where the patch_immediate returns directly the instruction
+    override_patch: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -68,6 +72,22 @@ impl TryFrom<&str> for AArch64Instruction {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.to_ascii_uppercase();
+
+        if value.starts_with('B') {
+            let addr = value.strip_prefix('B').unwrap().trim();
+            let addr = if addr.starts_with("0X") {
+                u16::from_str_radix(addr.strip_prefix("0X").unwrap(), 16)
+                    .map_err(|e| format!("{:?}", e))?
+            } else {
+                addr.parse().map_err(|e| format!("{:?}", e))?
+            };
+
+            return Ok(Self {
+                op_code:       AArch64AssemblyOpCode::B,
+                w_register_id: 0,
+                immediate:     addr / 4,
+            });
+        }
 
         let split = value
             .split(',')
@@ -131,6 +151,8 @@ enum AArch64AssemblyOpCode {
     CMP,
     /// MOV (wide immediate)
     MOV,
+    /// B
+    B,
 }
 
 impl AArch64AssemblyOpCode {
@@ -143,6 +165,10 @@ impl AArch64AssemblyOpCode {
             AArch64AssemblyOpCode::MOV => InstructionNumPosition {
                 bit_start: 5,
                 length:    16,
+            },
+            AArch64AssemblyOpCode::B => InstructionNumPosition {
+                bit_start: 0,
+                length:    26,
             },
         }
     }
@@ -157,6 +183,10 @@ impl AArch64AssemblyOpCode {
                 bit_start: 0,
                 length:    5,
             },
+            AArch64AssemblyOpCode::B => InstructionNumPosition {
+                bit_start: 0,
+                length:    0,
+            },
         }
     }
 
@@ -164,6 +194,7 @@ impl AArch64AssemblyOpCode {
         match self {
             AArch64AssemblyOpCode::CMP => 0x7100001F,
             AArch64AssemblyOpCode::MOV => 0x52800000,
+            AArch64AssemblyOpCode::B => 0x14000000,
         }
     }
 }
@@ -189,8 +220,14 @@ impl InstructionNumPosition {
 impl InstructionPatch {
     /// Returns patched instruction in big endian bytes
     fn patch_immediate(&self, immediate_offset: i16) -> u32 {
+        let immediate = if self.override_patch {
+            self.instruction.immediate
+        } else {
+            (self.instruction.immediate as i16 + immediate_offset) as u16
+        };
+
         let instruction = AArch64Instruction {
-            immediate: (self.instruction.immediate as i16 + immediate_offset) as u16,
+            immediate,
             ..self.instruction
         };
 
@@ -270,8 +307,9 @@ mod test {
     fn generate_example_config() {
         let config = IPConfig {
             patches: vec![InstructionPatch {
-                offset:      0,
-                instruction: AArch64Instruction::default(),
+                offset:         0,
+                instruction:    AArch64Instruction::default(),
+                override_patch: false,
             }],
         };
 
@@ -281,11 +319,23 @@ mod test {
     #[test]
     fn test_patch_instruction() {
         let ip = InstructionPatch {
-            offset:      0, // Doesn't matter now
-            instruction: "cmp w20, #0x110".try_into().unwrap(),
+            offset:         0, // Doesn't matter now
+            instruction:    "cmp w20, #0x110".try_into().unwrap(),
+            override_patch: false,
         };
 
         assert_eq!(ip.patch_immediate(5), 0x7104569F);
         assert_eq!(ip.patch_immediate(16), 0x7104829F);
+    }
+
+    #[test]
+    fn test_b_instruction() {
+        let ip = InstructionPatch {
+            offset:         0,
+            instruction:    "B          0xFC".try_into().unwrap(),
+            override_patch: true,
+        };
+
+        assert_eq!(ip.patch_immediate(5), 0x1400003F);
     }
 }
