@@ -58,24 +58,13 @@ fn main() {
         .status()
         .unwrap();
 
-    match os {
-        Os::Windows => {
-            println!("cargo:rustc-link-lib=user32");
-            println!("cargo:rustc-link-lib=ole32");
-
-            println!("cargo:rustc-link-arg=/INCLUDE:NativeAOT_StaticInitialization");
-        }
-        Os::Linux => {
-            println!("cargo:rustc-link-arg=-Wl,--require-defined,NativeAOT_StaticInitialization")
-        }
-        Os::MacOs => {
-            println!("cargo:rustc-link-arg=-Wl,-u,_NativeAOT_StaticInitialization")
-        }
-        _ => unreachable!(),
+    if let Os::Windows = os {
+        println!("cargo:rustc-link-lib=user32");
+        println!("cargo:rustc-link-lib=ole32");
     }
 
     let dotnet_ilcompiler_sdk_libs_path = format!(
-        "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/7.0.9/sdk",
+        "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/8.0.0/sdk",
         if let Os::Windows = os {
             std::env::var("USERPROFILE").unwrap()
         } else {
@@ -89,7 +78,7 @@ fn main() {
     );
 
     let dotnet_ilcompiler_framework_libs_path = format!(
-        "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/7.0.9/framework",
+        "{}/.nuget/packages/runtime.{}.microsoft.dotnet.ilcompiler/8.0.0/framework",
         if let Os::Windows = os {
             std::env::var("USERPROFILE").unwrap()
         } else {
@@ -104,15 +93,22 @@ fn main() {
 
     println!(
         "cargo:rustc-link-search=deps/SpellBubbleModToolHelper/SpellBubbleModToolHelper/bin/\
-         Release/net7.0/{}/publish",
+         Release/net8.0/{}/publish",
         rid
     );
 
-    println!("cargo:rustc-link-lib=static=bootstrapperdll");
+    // Cargo can only link static library, while bootstrapperdll is provided as an object file.
+    // And the bootstrapperdll library should be manually created with ar.
+    // Also, linking with library file will not preserve symbols required for .NET runtime initialization.
+    // So the "+whole-archive" is required.
+    // (That's also why /INCLUDE:NativeAOT_StaticInitialization argument is required for .NET 7 libraries)
+    println!("cargo:rustc-link-lib=static:+whole-archive=bootstrapperdll");
+    println!("cargo:rustc-link-lib=static=eventpipe-disabled");
     println!("cargo:rustc-link-lib=static=Runtime.ServerGC");
 
     match os {
         Os::Windows => {
+            println!("cargo:rustc-link-lib=static=Runtime.VxsortEnabled");
             println!("cargo:rustc-link-lib=static=System.Globalization.Native.Aot");
             println!("cargo:rustc-link-lib=static=System.IO.Compression.Native.Aot");
         }
