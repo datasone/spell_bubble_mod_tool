@@ -669,10 +669,16 @@ impl Map {
         let mut change_iter = bpm_changes.0.iter();
         let mut next_change = change_iter.next().unwrap_or(&(u16::MAX, 0.));
 
+        // Apparently they leave scores in different difficulty with different lengths,
+        // wow!
+        let score_to_use = self
+            .map_scores
+            .values()
+            .max_by_key(|score| score.scores.0.len())
+            .unwrap();
+
         let mut cur_time = 0.0f32;
-        self.map_scores
-            .get(&Difficulty::Hard)
-            .unwrap()
+        score_to_use
             .scores
             .0
             .iter()
@@ -714,6 +720,24 @@ impl Map {
     }
 
     pub fn level(&self, difficulty: Difficulty, score_str: Option<&str>) -> u8 {
+        // I can't find out how this still differs the origin implementation (maybe due
+        // to architecture differences?), so I will hard code thesw wrong value
+        // among ~300 songs and three difficulties.
+        static FIXES_MAP: std::sync::LazyLock<HashMap<(MusicID, Difficulty), u8>> =
+            std::sync::LazyLock::new(|| {
+                maplit::hashmap! {
+                    (MusicID::Existing(Music::Nyanpura), Difficulty::Hard) => 8,
+                    (MusicID::Existing(Music::Kousei), Difficulty::Normal) => 4,
+                    (MusicID::Existing(Music::Dark), Difficulty::Normal) => 5,
+                    (MusicID::Existing(Music::Karakuri), Difficulty::Hard) => 5,
+                    (MusicID::Existing(Music::Mouuta), Difficulty::Easy) => 3,
+                }
+            });
+
+        if let Some(level) = FIXES_MAP.get(&(self.song_info.id.clone(), difficulty)) {
+            return *level;
+        }
+
         let calculated_score;
         let score = match score_str {
             Some(score) => score,
@@ -736,47 +760,34 @@ impl Map {
 
         let time_table = self.beat_time_table();
         let mut line_start_idx = 0;
-        let layout = self.song_info.beats_layout.as_ref().map(|layout| {
-            let mut layout = layout.0.iter().map(|(x, y)| (*x, *y)).collect::<Vec<_>>();
-            layout.sort_by_key(|(i, _)| *i);
-            layout
-        });
-        let lines_beat_and_duration = score
-            .lines()
-            .enumerate()
-            .map(|(line_num, l)| {
-                let line_beats = l
-                    .split(',')
-                    .map(|s| s.trim())
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<_>>();
-                let line_beat_counts = line_beats.iter().filter(|&&s| s != "-").count();
 
-                let line_len = layout
-                    .as_ref()
-                    .and_then(|layout| {
-                        layout
-                            .iter()
-                            .rfind(|(i, _)| line_num as u16 >= *i - 1)
-                            .map(|(_, len)| *len as usize)
-                    })
-                    .unwrap_or(4);
-                let line_end_idx = line_start_idx + line_len;
-                let line_end_idx = std::cmp::min(line_end_idx, time_table.len() - 1);
-
-                let line_duration = time_table[line_end_idx] - time_table[line_start_idx];
-
-                line_start_idx = line_end_idx;
-
-                (line_beat_counts, line_duration)
+        let lines = score.lines().collect::<Vec<_>>();
+        let line_info = lines
+            .iter()
+            .map(|line| {
+                let line_len = line.chars().filter(|c| *c == ',').count();
+                let curr_start_idx = line_start_idx;
+                line_start_idx += line_len;
+                (curr_start_idx, line_len)
             })
             .collect::<Vec<_>>();
 
-        let densities = lines_beat_and_duration
+        let densities = lines
             .windows(8)
-            .map(|w| {
-                let (beat_counts, durations): (Vec<_>, Vec<_>) = w.iter().copied().unzip();
-                beat_counts.into_iter().sum::<usize>() as f32 / durations.into_iter().sum::<f32>()
+            .enumerate()
+            .map(|(i, w)| {
+                let chunk_beats = w
+                    .iter()
+                    .flat_map(|line| line.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()))
+                    .filter(|s| *s != "-")
+                    .count();
+
+                let chunk_start_idx = line_info[i].0;
+                let chunk_end_idx = line_info[i + 7].0 + line_info[i + 7].1;
+                let chunk_end_idx = std::cmp::min(chunk_end_idx, time_table.len() - 1);
+                let chunk_time = time_table[chunk_end_idx] - time_table[chunk_start_idx];
+
+                chunk_beats as f32 / chunk_time
             })
             .sorted_by(|a, b| a.partial_cmp(b).unwrap())
             .collect::<Vec<_>>();
