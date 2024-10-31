@@ -223,13 +223,14 @@ fn main() -> anyhow::Result<()> {
                             .map(|(_, it)| it.title())
                             .unwrap_or_default();
 
+                        let duration = m.duration();
                         let effective_bpm = m.effective_bpm();
                         let replace = &m.song_info.id;
 
                         let (level_e, level_n, level_h) = m.levels();
 
                         format!(
-                            "Map {i}: {title}, effective BPM: {effective_bpm}, levels (E/N/H): \
+                            "Map {i}: {title}, effective BPM: {effective_bpm}, duration: {duration}, levels (E/N/H): \
                              {level_e}/{level_n}/{level_h}, id: {replace}"
                         )
                     })
