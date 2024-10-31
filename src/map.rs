@@ -332,6 +332,7 @@ pub struct SongInfo {
     pub info_text:     HashMap<Lang, SongInfoText>,
     pub prev_start_ms: u32,
     pub bpm_changes:   Option<BpmChanges>,
+    #[allow(dead_code)]
     #[serde(skip)]
     pub beats_layout:  Option<BeatsLayout>,
     #[serde(skip)]
@@ -415,9 +416,10 @@ impl ScoreData {
     }
 }
 
-impl ToString for ScoreData {
-    fn to_string(&self) -> String {
-        self.0.iter().map(|e| e.to_string()).collect()
+impl Display for ScoreData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let display: String = self.0.iter().map(|e| e.to_string()).collect();
+        write!(f, "{display}")
     }
 }
 

@@ -1,14 +1,14 @@
 use std::path::Path;
 
 use osu_file_parser::{
+    HitObjects, OsuFile, TimingPoints,
     hitobjects::{HitObject, HitSound},
     osu_file::hitobjects::HitObjectParams,
     timingpoints::{Effects, SampleIndex, SampleSet, TimingPoint, Volume},
-    HitObjects, OsuFile, TimingPoints,
 };
 use rust_decimal::{
-    prelude::{FromPrimitive, ToPrimitive},
     Decimal,
+    prelude::{FromPrimitive, ToPrimitive},
 };
 
 use crate::map::{BpmChanges, ScoreData, ScoreEntry};

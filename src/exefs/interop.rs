@@ -1,5 +1,5 @@
 use std::{
-    ffi::{c_char, c_int, CString},
+    ffi::{CString, c_char, c_int, c_void},
     path::Path,
 };
 
@@ -351,7 +351,7 @@ where
         let added_song_ids = ArrayWrapper {
             managed: 0,
             size:    added_song_ids.len() as u32,
-            array:   std::mem::transmute(added_song_ids.as_ptr()),
+            array:   std::mem::transmute::<*const *const i8, *mut c_void>(added_song_ids.as_ptr()),
         };
         patch_main_asset_bundle_internal(
             main_ab_path.as_ptr(),

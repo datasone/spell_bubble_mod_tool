@@ -10,7 +10,7 @@ mod song_info;
 mod ui;
 
 use std::{
-    ffi::{c_char, c_int, CString},
+    ffi::{CString, c_char, c_int, c_void},
     fs, mem,
     path::{Path, PathBuf},
     process::exit,
@@ -155,7 +155,7 @@ fn main() -> anyhow::Result<()> {
                 let exclude_list_wrapper = ArrayWrapper {
                     managed: 0,
                     size:    exclude_list.len() as u32,
-                    array:   mem::transmute(exclude_list.as_ptr()),
+                    array:   mem::transmute::<*const u16, *mut c_void>(exclude_list.as_ptr()),
                 };
 
                 patch_features(
@@ -231,8 +231,9 @@ fn main() -> anyhow::Result<()> {
                         let (level_e, level_n, level_h) = m.levels();
 
                         format!(
-                            "Map {i}: {title}, effective BPM: {effective_bpm}, duration: {duration}, levels (E/N/H): \
-                             {level_e}/{level_n}/{level_h}, id: {replace}"
+                            "Map {i}: {title}, effective BPM: {effective_bpm}, duration: \
+                             {duration}, levels (E/N/H): {level_e}/{level_n}/{level_h}, id: \
+                             {replace}"
                         )
                     })
                     .join("\n");
@@ -257,12 +258,11 @@ fn main() -> anyhow::Result<()> {
             map_obj.song_info.length = adofai.length() as u16;
             map_obj.song_info.bpm = adofai.bpm();
             map_obj.song_info.offset = adofai.offset();
-            map_obj.map_scores.insert(
-                difficulty.unwrap(),
-                map::MapScore {
+            map_obj
+                .map_scores
+                .insert(difficulty.unwrap(), map::MapScore {
                     scores: map::ScoreData(adofai.scores()),
-                },
-            );
+                });
 
             let bpm_changes = adofai.bpm_changes();
             if !bpm_changes.is_empty() {

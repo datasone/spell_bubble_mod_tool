@@ -97,11 +97,12 @@ fn main() {
         rid
     );
 
-    // Cargo can only link static library, while bootstrapperdll is provided as an object file.
-    // And the bootstrapperdll library should be manually created with ar.
-    // Also, linking with library file will not preserve symbols required for .NET runtime initialization.
-    // So the "+whole-archive" is required.
-    // (That's also why /INCLUDE:NativeAOT_StaticInitialization argument is required for .NET 7 libraries)
+    // Cargo can only link static library, while bootstrapperdll is provided as an
+    // object file. And the bootstrapperdll library should be manually created
+    // with ar. Also, linking with library file will not preserve symbols
+    // required for .NET runtime initialization. So the "+whole-archive" is
+    // required. (That's also why /INCLUDE:NativeAOT_StaticInitialization
+    // argument is required for .NET 7 libraries)
     println!("cargo:rustc-link-lib=static:+whole-archive=bootstrapperdll");
     println!("cargo:rustc-link-lib=static=eventpipe-disabled");
     println!("cargo:rustc-link-lib=static=Runtime.ServerGC");

@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     env::temp_dir,
-    ffi::{c_void, CStr, CString},
+    ffi::{CStr, CString, c_void},
     mem,
     os::raw::c_char,
     path::{Path, PathBuf},
@@ -14,10 +14,10 @@ use memmem::{Searcher, TwoWaySearcher};
 
 use crate::{
     ffmpeg_helper::convert_file,
-    interop::{free_dotnet, ArrayWrapper, DualArrayWrapper, StringWrapper},
+    interop::{ArrayWrapper, DualArrayWrapper, StringWrapper, free_dotnet},
     map::{
-        enums::{Area, Music},
         BeatsLayout, BpmChanges, Difficulty, Lang, Map, MapScore, SongInfo, SongInfoText,
+        enums::{Area, Music},
     },
 };
 
@@ -255,7 +255,7 @@ pub(super) fn patch_score_file(
         let param = ArrayWrapper {
             managed: 0,
             size:    param_ptrs.len() as u32,
-            array:   mem::transmute(param_ptrs.as_ptr()),
+            array:   mem::transmute::<*const *const i8, *mut c_void>(param_ptrs.as_ptr()),
         };
         if replace_existing {
             patch_score(
@@ -353,7 +353,9 @@ pub(super) fn patch_share_data<T, U>(
             ArrayWrapper {
                 managed: 0,
                 size:    plus_1s_vec[word_entries_idx].len() as u32,
-                array:   mem::transmute(plus_1s_vec[word_entries_idx].as_ptr()),
+                array:   mem::transmute::<*const WordEntry, *mut c_void>(
+                    plus_1s_vec[word_entries_idx].as_ptr(),
+                ),
             }
         };
 
@@ -374,7 +376,7 @@ pub(super) fn patch_share_data<T, U>(
         let wrapper = ArrayWrapper {
             managed: 0,
             size:    song_entries.len() as u32,
-            array:   mem::transmute(song_entries.as_ptr()),
+            array:   mem::transmute::<*const SongEntry, *mut c_void>(song_entries.as_ptr()),
         };
 
         if replace_existing {
