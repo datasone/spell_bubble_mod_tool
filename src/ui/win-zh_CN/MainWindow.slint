@@ -6,6 +6,9 @@ import { AddMapPage, CustomMapAdapter, CustomMapModel, MapInfo, MapInfoText } fr
 export { Utilities, SongInfoAdapter, CustomMapAdapter, CustomMapModel, MapInfo, MapInfoText }
 
 export component MainWindow inherits Window {
+    width: 1200px;
+    height: 800px;
+
     callback prompt_get_path() -> string;
 
     TabWidget {

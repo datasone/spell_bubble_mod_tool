@@ -1,4 +1,5 @@
 #![feature(try_blocks)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod exefs;
 mod external_map;
