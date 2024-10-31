@@ -262,7 +262,7 @@ impl BeatsLayout {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[serde(into = "String", from = "String")]
 pub enum MusicID {
     Existing(Music),
