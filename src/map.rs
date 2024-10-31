@@ -656,6 +656,40 @@ impl Map {
         Ok(())
     }
 
+    fn beat_time_table(&self) -> Vec<f32> {
+        let default_bpm_changes = BpmChanges::default();
+        let bpm_changes = self
+            .song_info
+            .bpm_changes
+            .as_ref()
+            .unwrap_or(&default_bpm_changes);
+        let mut curr_bpm = self.song_info.bpm;
+        let mut change_iter = bpm_changes.0.iter();
+        let mut next_change = change_iter.next().unwrap_or(&(u16::MAX, 0.));
+
+        let mut cur_time = 0.0f32;
+        self.map_scores
+            .get(&Difficulty::Hard)
+            .unwrap()
+            .scores
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, _)| {
+                let bpm = if i > next_change.0 as usize {
+                    let next_bpm = next_change.1;
+                    next_change = change_iter.next().unwrap_or(&(u16::MAX, 0.));
+                    curr_bpm = next_bpm;
+                    next_bpm
+                } else {
+                    curr_bpm
+                };
+                cur_time += 60. / bpm;
+                cur_time
+            })
+            .collect()
+    }
+
     pub fn effective_bpm(&self) -> f32 {
         if self.song_info.is_bpm_change() {
             let beats_count = self.map_scores.values().next().unwrap().scores.0.len();
@@ -665,37 +699,8 @@ impl Map {
         }
     }
 
-    fn duration(&self) -> f32 {
-        let score_len = self
-            .map_scores
-            .get(&Difficulty::Hard)
-            .unwrap()
-            .scores
-            .0
-            .len();
-        let init_bpm = self.song_info.bpm;
-
-        match &self.song_info.bpm_changes {
-            Some(bpm_changes) => {
-                let mut duration_sum = 0.0;
-
-                let (first_id, _) = bpm_changes.0.first().unwrap();
-                duration_sum += (first_id + 1) as f32 / init_bpm * 60.0;
-
-                bpm_changes.0.windows(2).for_each(|w| {
-                    let (left_id, left_bpm) = w[0];
-                    let (right_id, _) = w[1];
-
-                    duration_sum += (right_id - left_id) as f32 / left_bpm * 60.0;
-                });
-
-                let (last_id, last_bpm) = bpm_changes.0.last().unwrap();
-                duration_sum += (score_len as u16 - *last_id - 1) as f32 / *last_bpm * 60.0;
-
-                duration_sum
-            }
-            None => (score_len - 1) as f32 / init_bpm * 60.0,
-        }
+    pub fn duration(&self) -> f32 {
+        *self.beat_time_table().last().unwrap()
     }
 
     pub fn levels(&self) -> (u8, u8, u8) {
@@ -727,30 +732,17 @@ impl Map {
             }
         };
 
-        let default_bpm_changes = BpmChanges::default();
-        let bpm_changes = &self.song_info.bpm_changes;
-        let bpm_changes_entries = bpm_changes
-            .as_ref()
-            .map(|bc| bc.entry_pos(&self.song_info.beats_layout))
-            .unwrap_or_default();
-        let mut bpm_line_changes = zip(
-            bpm_changes
-                .as_ref()
-                .unwrap_or(&default_bpm_changes)
-                .0
-                .iter(),
-            bpm_changes_entries.iter(),
-        )
-        .map(|((_, bpm), (line, _))| (*line, *bpm));
-
-        // u16::MAX is used to form an (impossible to match) change point
-        let mut next_bpm_change = bpm_line_changes.next().unwrap_or((u16::MAX, 0.));
-        let mut tracked_bpm = self.song_info.bpm;
-
+        let time_table = self.beat_time_table();
+        let mut line_start_idx = 0;
+        let layout = self.song_info.beats_layout.as_ref().map(|layout| {
+            let mut layout = layout.0.iter().map(|(x, y)| (*x, *y)).collect::<Vec<_>>();
+            layout.sort_by_key(|(i, _)| *i);
+            layout
+        });
         let lines_beat_and_duration = score
             .lines()
             .enumerate()
-            .map(|(i, l)| {
+            .map(|(line_num, l)| {
                 let line_beats = l
                     .split(',')
                     .map(|s| s.trim())
@@ -758,16 +750,21 @@ impl Map {
                     .collect::<Vec<_>>();
                 let line_beat_counts = line_beats.iter().filter(|&&s| s != "-").count();
 
-                let line_duration = if i + 1 == next_bpm_change.0 as usize {
-                    let duration = 60.0 / tracked_bpm;
+                let line_len = layout
+                    .as_ref()
+                    .and_then(|layout| {
+                        layout
+                            .iter()
+                            .rfind(|(i, _)| line_num as u16 >= *i - 1)
+                            .map(|(_, len)| *len as usize)
+                    })
+                    .unwrap_or(4);
+                let line_end_idx = line_start_idx + line_len;
+                let line_end_idx = std::cmp::min(line_end_idx, time_table.len() - 1);
 
-                    tracked_bpm = next_bpm_change.1;
-                    next_bpm_change = bpm_line_changes.next().unwrap_or((u16::MAX, 0.));
+                let line_duration = time_table[line_end_idx] - time_table[line_start_idx];
 
-                    duration + (line_beats.len() - 1) as f32 * 60.0 / tracked_bpm
-                } else {
-                    line_beats.len() as f32 * 60.0 / tracked_bpm
-                };
+                line_start_idx = line_end_idx;
 
                 (line_beat_counts, line_duration)
             })
